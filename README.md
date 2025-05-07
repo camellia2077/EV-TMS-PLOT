@@ -1,2 +1,5 @@
 # EV-TMS-PLOT
 毕业设计，用于输出随速度时间变化，特斯拉model y的热管理系统各部分温度变化的图
+
+# 配置环境
+pip install -r requirements.txt
