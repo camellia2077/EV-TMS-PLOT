@@ -81,22 +81,24 @@ def run_simulation(cop_value):
         Q_cabin_ventilation = ht.heat_vent_summer_func(sp.N_passengers, sp.T_ambient, T_cabin_hist[i], sp.W_out_summer, sp.W_in_target, sp.fresh_air_fraction)
         Q_cabin_load_total = Q_cabin_internal + Q_cabin_conduction_body + Q_cabin_conduction_glass + Q_cabin_ventilation
 
-        # 3.4. Cabin Cooling Control
+        # MODIFIED SECTION FOR COOLING LOGIC (3.4, 3.6, 3.7 combined and reordered for priority)
+
+        # 3.4. Cabin Cooling Demand Calculation
         cabin_temp_error = T_cabin_hist[i] - sp.T_cabin_target
         gain_cabin_cool = 1000 # Proportional gain for cabin cooling
-        Q_cabin_cool_demand = gain_cabin_cool * cabin_temp_error if cabin_temp_error > 0 else 0
-        Q_cabin_cool_actual = min(Q_cabin_cool_demand, sp.max_cabin_cool_power) if T_cabin_hist[i] > sp.T_cabin_target else 0
-        Q_out_cabin = Q_cabin_cool_actual
+        Q_cabin_cool_demand = gain_cabin_cool * cabin_temp_error if cabin_temp_error > 0 and T_cabin_hist[i] > sp.T_cabin_target else 0
+        # Preliminary cabin cooling request, limited by its own max power
+        Q_cabin_cool_requested = min(Q_cabin_cool_demand, sp.max_cabin_cool_power)
 
-        # 3.5. Heat Transfer between Components and Coolant
+        # 3.5. Heat Transfer between Components and Coolant (Original placement, no change here)
         Q_motor_to_coolant = sp.UA_motor_coolant * (T_motor_hist[i] - T_coolant_hist[i])
         Q_inv_to_coolant = sp.UA_inv_coolant * (T_inv_hist[i] - T_coolant_hist[i])
         Q_batt_to_coolant = sp.UA_batt_coolant * (T_batt_hist[i] - T_coolant_hist[i])
         Q_coolant_absorb = Q_motor_to_coolant + Q_inv_to_coolant + Q_batt_to_coolant
 
-        # 3.6. Coolant Cooling Control (Radiator and Chiller)
+        # 3.6. Coolant Cooling Demand (Radiator and Chiller)
         Q_radiator_potential = sp.UA_coolant_radiator * (T_coolant_hist[i] - sp.T_ambient)
-        Q_coolant_radiator = max(0, Q_radiator_potential)
+        Q_coolant_radiator = max(0, Q_radiator_potential) # Radiator always works if temp diff allows
 
         start_cooling_powertrain = (T_motor_hist[i] > sp.T_motor_target) or \
                                    (T_inv_hist[i] > sp.T_inv_target) or \
@@ -109,37 +111,61 @@ def run_simulation(cop_value):
         elif stop_cooling_powertrain:
             powertrain_chiller_on = False
 
-        Q_chiller_potential = sp.UA_coolant_chiller * (T_coolant_hist[i] - sp.T_evap_sat_for_UA_calc) if T_coolant_hist[i] > sp.T_evap_sat_for_UA_calc else 0
-        Q_coolant_chiller_actual = min(Q_chiller_potential, sp.max_chiller_cool_power) if powertrain_chiller_on else 0
-        powertrain_chiller_active_log[i] = 1 if powertrain_chiller_on and Q_coolant_chiller_actual > 0 else 0
+        Q_chiller_demand_potential = 0
+        if powertrain_chiller_on:
+            Q_chiller_demand_potential = sp.UA_coolant_chiller * (T_coolant_hist[i] - sp.T_evap_sat_for_UA_calc) if T_coolant_hist[i] > sp.T_evap_sat_for_UA_calc else 0
+            Q_chiller_demand_potential = max(0, Q_chiller_demand_potential) # Ensure non-negative
+        # Preliminary coolant chiller request, limited by its own max power
+        Q_coolant_chiller_requested = min(Q_chiller_demand_potential, sp.max_chiller_cool_power) if powertrain_chiller_on else 0
 
-        Q_coolant_reject = Q_coolant_chiller_actual + Q_coolant_radiator
+        # 3.7. Refrigeration Power Allocation and Compressor Power Calculation (MODIFIED FOR PRIORITY)
+        Q_out_cabin = 0  # Actual cooling power provided to cabin
+        Q_coolant_chiller_actual = 0 # Actual cooling power provided to coolant by chiller
 
-        # 3.7. Calculate AC Compressor Power
+        # Priority 1: Cabin Cooling
+        # Actual cabin cooling is limited by its request AND the total available evaporator power
+        Q_out_cabin = min(Q_cabin_cool_requested, sp.max_total_evaporator_power)
+
+        # Calculate remaining evaporator power after cabin cooling
+        remaining_evaporator_power = sp.max_total_evaporator_power - Q_out_cabin
+
+        # Priority 2: Powertrain Coolant Chiller
+        # Chiller gets what's requested, limited by remaining evaporator power
+        if powertrain_chiller_on and remaining_evaporator_power > 0:
+            Q_coolant_chiller_actual = min(Q_coolant_chiller_requested, remaining_evaporator_power)
+        else:
+            Q_coolant_chiller_actual = 0 # No chiller if not on or no power left
+
+        powertrain_chiller_active_log[i] = 1 if Q_coolant_chiller_actual > 0 else 0
+        Q_coolant_reject = Q_coolant_chiller_actual + Q_coolant_radiator # Total heat rejected from coolant loop
+
+        # Calculate total actual evaporator load and compressor power
         P_comp_elec = 0.0
-        Q_evap_total_needed = Q_out_cabin + Q_coolant_chiller_actual
+        Q_evap_total_actual = Q_out_cabin + Q_coolant_chiller_actual # This is the actual total cooling done by evaporator
 
-        if Q_evap_total_needed > 0:
+        if Q_evap_total_actual > 0:
             if cop_value > 0 and cop_value != float('inf') and sp.eta_comp_drive > 0:
-                P_comp_mech = Q_evap_total_needed / cop_value
+                P_comp_mech = Q_evap_total_actual / cop_value
                 P_comp_elec = P_comp_mech / sp.eta_comp_drive
             else:
-                P_comp_elec = 3000 # Fallback
+                P_comp_elec = 3000 # Fallback, consider more robust error handling or a warning
         P_comp_elec_profile_hist[i] = P_comp_elec
 
-        # 3.8. Update Battery Load & Heat Generation
+        # END OF MODIFIED COOLING LOGIC SECTION
+
+        # 3.8. Update Battery Load & Heat Generation (Original, uses P_comp_elec)
         P_elec_total_batt_out = P_inv_in + P_comp_elec
         Q_gen_batt = vp.Q_batt_func(P_elec_total_batt_out, sp.u_batt, sp.R_int_batt)
         Q_gen_batt_profile_hist[i] = Q_gen_batt
 
-        # 3.9. Calculate Temperature Derivatives
+        # 3.9. Calculate Temperature Derivatives (Original, uses Q_out_cabin and Q_coolant_reject)
         dT_motor_dt = (Q_gen_motor - Q_motor_to_coolant) / sp.mc_motor if sp.mc_motor > 0 else 0
         dT_inv_dt = (Q_gen_inv - Q_inv_to_coolant) / sp.mc_inverter if sp.mc_inverter > 0 else 0
         dT_batt_dt = (Q_gen_batt - Q_batt_to_coolant) / sp.mc_battery if sp.mc_battery > 0 else 0
-        dT_cabin_dt = (Q_cabin_load_total - Q_out_cabin) / sp.mc_cabin if sp.mc_cabin > 0 else 0
-        dT_coolant_dt = (Q_coolant_absorb - Q_coolant_reject) / sp.mc_coolant if sp.mc_coolant > 0 else 0
+        dT_cabin_dt = (Q_cabin_load_total - Q_out_cabin) / sp.mc_cabin if sp.mc_cabin > 0 else 0 # Uses Q_out_cabin
+        dT_coolant_dt = (Q_coolant_absorb - Q_coolant_reject) / sp.mc_coolant if sp.mc_coolant > 0 else 0 # Uses Q_coolant_reject
 
-        # 3.10. Update Temperatures using Euler forward method
+        # 3.10. Update Temperatures using Euler forward method (Original)
         T_motor_hist[i+1] = T_motor_hist[i] + dT_motor_dt * sp.dt
         T_inv_hist[i+1] = T_inv_hist[i] + dT_inv_dt * sp.dt
         T_batt_hist[i+1] = T_batt_hist[i] + dT_batt_dt * sp.dt
@@ -162,11 +188,23 @@ def run_simulation(cop_value):
         Q_gen_inv_profile_hist[n_steps] = Q_gen_inv_profile_hist[n_steps-1]
         Q_gen_batt_profile_hist[n_steps] = Q_gen_batt_profile_hist[n_steps-1]
         P_comp_elec_profile_hist[n_steps] = P_comp_elec_profile_hist[n_steps-1]
-    elif n_steps == 0:
+    elif n_steps == 0: # Handle case with only one time step (n_steps=0)
+        # For a single point in time, values are already set at index 0
+        # The post-processing for the last step [n_steps] is mainly for plotting continuity
+        # If n_steps is 0, then the loop for i in range(n_steps) does not run.
+        # Initial values are in [0], and we might want to fill [1] (or [n_steps]) if sim_duration > 0
+        # However, if n_steps = 0, len(time_sim) = 1. The arrays are n_steps + 1.
+        # So if sim_duration = 0 or dt is very large, n_steps can be 0.
+        # Let's assume if n_steps = 0, the simulation effectively ran for 0 duration or 1 point.
+        # The existing logic for n_steps > 0 handles array filling for plotting.
+        # If n_steps == 0, ensure the [0] index has the calculated values from the (not run) loop's first iteration logic.
+        # This section might need refinement if sim_duration=0 or very small dt is a common use case.
+        # For now, 'pass' is acceptable as the initial state is already set.
         pass
 
+
     P_inv_in_profile_hist = np.zeros(n_steps + 1)
-    for idx in range(n_steps + 1):
+    for idx in range(n_steps + 1): # Should be n_steps + 1 to cover the last point
         P_wheel_i = vp.P_wheel_func(v_vehicle_profile_hist[idx], sp.m_vehicle, sp.T_ambient)
         P_motor_in_i = vp.P_motor_func(P_wheel_i, sp.eta_motor)
         P_inv_in_profile_hist[idx] = P_motor_in_i / sp.eta_inv if sp.eta_inv > 0 else 0
@@ -198,6 +236,7 @@ def run_simulation(cop_value):
         'dt': sp.dt,
         'eta_comp_drive': sp.eta_comp_drive,
         'ramp_up_time_sec': sp.ramp_up_time_sec,
+        'max_total_evaporator_power': sp.max_total_evaporator_power # Pass for potential plotting/info
     }
     print("Simulation core finished.")
     return (time_sim, temperatures_data, powertrain_chiller_active_log,
