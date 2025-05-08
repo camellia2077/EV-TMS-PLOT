@@ -103,6 +103,9 @@ T_cabin_target = get_config_value('TargetsAndControl', 'T_cabin_target')
 hysteresis_band = get_config_value('TargetsAndControl', 'hysteresis_band')
 max_cabin_cool_power = get_config_value('TargetsAndControl', 'max_cabin_cool_power')
 max_chiller_cool_power = get_config_value('TargetsAndControl', 'max_chiller_cool_power')
+# MODIFIED: Read new parameter with a default if not found
+max_total_evaporator_power = get_config_value('TargetsAndControl', 'max_total_evaporator_power', default=(max_cabin_cool_power + max_chiller_cool_power))
+
 
 # --- Read Efficiency ---
 eta_motor = get_config_value('Efficiency', 'eta_motor')
@@ -160,3 +163,4 @@ except KeyError: # If absolute values are not found, use offsets
 print("Configuration parameters loaded from config.ini")
 # Example: print one value to confirm
 # print(f"Ambient Temperature from INI: {T_ambient}°C")
+# print(f"Max Total Evaporator Power: {max_total_evaporator_power} W")
