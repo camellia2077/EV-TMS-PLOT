@@ -64,13 +64,6 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
         plt.axhline(sim_params['T_batt_stop_cool'], color='green', linestyle=':', alpha=0.7, label=f'电池制冷停止 ({sim_params["T_batt_stop_cool"]:.1f}°C)')
     plt.axhline(sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, label=f'座舱目标 ({sim_params["T_cabin_target"]}°C)')
     
-    # Remove or adapt plotting of old cabin control thresholds
-    # if 'T_cabin_cool_off_threshold' in sim_params:
-    #     plt.axhline(sim_params['T_cabin_cool_off_threshold'], color='red', linestyle=':', alpha=0.5, label=f'座舱低温点 ({sim_params["T_cabin_cool_off_threshold"]:.1f}°C)')
-    # if 'T_cabin_cool_on_threshold' in sim_params:
-    #     plt.axhline(sim_params['T_cabin_cool_on_threshold'], color='red', linestyle='-.', alpha=0.5, label=f'座舱高温点 ({sim_params["T_cabin_cool_on_threshold"]:.1f}°C)')
-
-    # Optionally, plot the new cabin temperature thresholds if desired (can be many)
     if 'cabin_cooling_temp_thresholds' in sim_params and 'cabin_cooling_power_levels' in sim_params:
         thresholds = sim_params['cabin_cooling_temp_thresholds']
         levels = sim_params['cabin_cooling_power_levels']
@@ -89,7 +82,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt.ylabel('温度 (°C)')
     plt.xlabel('时间 (分钟)')
     plt.xlim(left=0, right=sim_params['sim_duration']/60)
-    plt.title(f'车辆估算温度 (线性加速 {sim_params["v_start"]}-{sim_params["v_end"]}km/h, 含空调, COP={cop_value:.2f}, 环境={sim_params["T_ambient"]}°C)')
+    plt.title(f'部件估算温度 (加速与匀速过程 {sim_params["v_start"]}-{sim_params["v_end"]}km/h, 含空调, COP={cop_value:.2f}, 环境={sim_params["T_ambient"]}°C)')
     plt.legend(loc='best', fontsize='small')
     plt.grid(True)
     plt.tight_layout()
@@ -218,7 +211,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
         plt.plot(v_accel, T_coolant_accel, label='冷却液温度 (°C)', color='purple', marker='.', markersize=1, linestyle='-', alpha=0.6)
         plt.xlabel('车速 (km/h)')
         plt.ylabel('温度 (°C)')
-        plt.title(f'部件温度随车速变化轨迹 (仅加速阶段 {sim_params["v_start"]} 到 {sim_params["v_end"]} km/h)')
+        plt.title(f'加速阶段部件温度随车速变化轨迹{sim_params["v_start"]}到{sim_params["v_end"]} km/h)')
         plt.legend(loc='best')
         plt.grid(True)
         if len(v_accel) > 1 :
