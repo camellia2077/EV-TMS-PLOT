@@ -44,6 +44,12 @@ T_ambient = get_config_value('Simulation', 'T_ambient', float, 35.0)
 sim_duration = get_config_value('Simulation', 'sim_duration', int, 2100)
 dt = get_config_value('Simulation', 'dt', int, 1)
 
+# --- Read Plotting Parameters --- # <--- 新增读取代码
+figure_width_inches = get_config_value('Plotting', 'figure_width_inches', float, 18)
+figure_height_inches = get_config_value('Plotting', 'figure_height_inches', float, 8)
+figure_dpi = get_config_value('Plotting', 'figure_dpi', int, 300)
+
+
 # --- 3. Read Speed Profile Parameters ---
 v_start = get_config_value('SpeedProfile', 'v_start', float, 60.0)
 v_end = get_config_value('SpeedProfile', 'v_end', float, 120.0)
@@ -165,5 +171,6 @@ T_evap_sat_for_UA_calc = T_evap_sat_C_in
 
 # --- End of Configuration Loading ---
 print("All parameters loaded/derived.")
+print(f"Plot settings: Size=({figure_width_inches}, {figure_height_inches}), DPI={figure_dpi}") # <--- (可选) 打印确认
 print(f"Cabin cooling levels (W): {cabin_cooling_power_levels}")
 print(f"Cabin cooling upper temp thresholds (°C): {cabin_cooling_temp_thresholds}")
