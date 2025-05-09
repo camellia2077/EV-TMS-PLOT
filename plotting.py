@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import os
 import numpy as np
-#画图
 # 设置 matplotlib 支持中文显示
 mpl.rcParams['font.sans-serif'] = ['SimHei']
 mpl.rcParams['axes.unicode_minus'] = False
@@ -162,7 +161,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt.figure(figsize=plt_figure_size)
     plt.plot(time_minutes, P_inv_in_profile, label='驱动功率 (逆变器输入 W)', color='brown', alpha=0.7)
     plt.plot(time_minutes, P_comp_elec_profile, label='空调功率 (W)', color='cyan', alpha=0.7)
-    plt.plot(time_minutes, P_elec_total_profile, label='总电池输出功率 (W)', color='black', linestyle='--')
+    plt.plot(time_minutes, P_elec_total_profile, label='总电池输出功率 (W)', color='green', linestyle='-')
     plt.xlabel('时间 (分钟)')
     plt.ylabel('功率 (W)')
     plt.xlim(left=0, right=sim_params['sim_duration']/60)
