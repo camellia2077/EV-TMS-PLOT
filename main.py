@@ -198,7 +198,7 @@ battery_power_data = {
     'comp_elec': P_comp_elec_profile_hist,
     'total_elec': P_elec_total_profile_hist
 }
-# Remove old threshold parameters from sim_params_dict for plotting
+
 sim_params_dict = {
     'T_ambient': sp.T_ambient,
     'T_motor_target': sp.T_motor_target,
@@ -206,24 +206,25 @@ sim_params_dict = {
     'T_batt_target_high': sp.T_batt_target_high,
     'T_batt_stop_cool': sp.T_batt_stop_cool,
     'T_cabin_target': sp.T_cabin_target,
-    # 'T_cabin_cool_off_threshold': sp.T_cabin_cool_off_threshold, # Removed
-    # 'T_cabin_cool_on_threshold': sp.T_cabin_cool_on_threshold,   # Removed
     'v_start': sp.v_start,
     'v_end': sp.v_end,
     'sim_duration': sp.sim_duration,
     'dt': sp.dt,
     'eta_comp_drive': sp.eta_comp_drive,
     'ramp_up_time_sec': sp.ramp_up_time_sec,
-    # Optionally pass the new thresholds if you want to plot them
     'cabin_cooling_temp_thresholds': sp.cabin_cooling_temp_thresholds,
-    'cabin_cooling_power_levels': sp.cabin_cooling_power_levels
+    'cabin_cooling_power_levels': sp.cabin_cooling_power_levels,
+    # --- 新增绘图参数到字典 ---
+    'figure_width_inches': sp.figure_width_inches,
+    'figure_height_inches': sp.figure_height_inches,
+    'figure_dpi': sp.figure_dpi
 }
 
 plotting.plot_results(
     time_sim, temperatures_data, powertrain_chiller_active_log,
     P_comp_elec_profile_hist, Q_cabin_cool_actual_hist,
     v_vehicle_profile_hist, heat_gen_data, battery_power_data,
-    sim_params_dict, COP
+    sim_params_dict, COP # sim_params_dict 现在包含了绘图设置
 )
 
 print("Main script finished.")
