@@ -18,7 +18,8 @@ def ensure_profile_length(profile, target_length):
 
 def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_power_log,
                  speed_profile, heat_gen_profiles, battery_power_profiles,
-                 sim_params, cop_value, output_dir="simulation_plots"):
+                 sim_params, cop_value, output_dir="simulation_plots",
+                 fig_width=18, fig_height=8, fig_dpi=300): # <--- 新增参数及默认值
     """
     Generates and saves all simulation plots.
     """
@@ -26,8 +27,11 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
         os.makedirs(output_dir)
         print(f"Created directory: {output_dir}")
 
-    plt_figure_size = (18, 8)
-    plt_dpi = 600
+    # 使用传入的参数或 sim_params 中的参数 (如果存在)
+    plt_figure_size = (sim_params.get('figure_width_inches', fig_width),
+                       sim_params.get('figure_height_inches', fig_height))
+    plt_dpi = sim_params.get('figure_dpi', fig_dpi)
+
     time_minutes = time_data / 60
     n_total_points = len(time_data)
 
@@ -41,7 +45,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     P_comp_elec_profile = ensure_profile_length(ac_power_log, n_total_points)
     Q_cabin_cool_profile = ensure_profile_length(cabin_cool_power_log, n_total_points)
     v_vehicle_profile = ensure_profile_length(speed_profile, n_total_points)
-    
+
     Q_gen_motor_profile = ensure_profile_length(heat_gen_profiles['motor'], n_total_points)
     Q_gen_inv_profile = ensure_profile_length(heat_gen_profiles['inv'], n_total_points)
     Q_gen_batt_profile = ensure_profile_length(heat_gen_profiles['batt'], n_total_points)
@@ -51,7 +55,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
 
 
     # --- Plot 1: Temperatures ---
-    plt.figure(figsize=plt_figure_size)
+    plt.figure(figsize=plt_figure_size) # <--- 应用读取的值
     plt.plot(time_minutes, T_motor, label='电机温度 (°C)', color='blue')
     plt.plot(time_minutes, T_inv, label='逆变器温度 (°C)', color='orange')
     plt.plot(time_minutes, T_batt, label='电池温度 (°C)', color='green')
@@ -63,7 +67,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     if 'T_batt_stop_cool' in sim_params: # Check if T_batt_stop_cool is available
         plt.axhline(sim_params['T_batt_stop_cool'], color='green', linestyle=':', alpha=0.7, label=f'电池制冷停止 ({sim_params["T_batt_stop_cool"]:.1f}°C)')
     plt.axhline(sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, label=f'座舱目标 ({sim_params["T_cabin_target"]}°C)')
-    
+
     if 'cabin_cooling_temp_thresholds' in sim_params and 'cabin_cooling_power_levels' in sim_params:
         thresholds = sim_params['cabin_cooling_temp_thresholds']
         levels = sim_params['cabin_cooling_power_levels']
@@ -87,12 +91,12 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt.grid(True)
     plt.tight_layout()
     filename1 = os.path.join(output_dir, "plot_temperatures.png")
-    plt.savefig(filename1, dpi=plt_dpi)
+    plt.savefig(filename1, dpi=plt_dpi) # <--- 应用读取的值
     plt.close()
     print(f"Saved: {filename1}")
 
     # --- Plot 2: Chiller State & AC Power ---
-    fig, ax1 = plt.subplots(figsize=plt_figure_size)
+    fig, ax1 = plt.subplots(figsize=plt_figure_size) # <--- 应用读取的值
     ax2 = ax1.twinx()
     ax1.plot(time_minutes, chiller_active_log, label='动力总成Chiller状态 (1=ON)', color='black', drawstyle='steps-post')
     ax2.plot(time_minutes, P_comp_elec_profile, label=f'空调压缩机总电耗 (W, $\\eta_{{comp}}={sim_params["eta_comp_drive"]}$)', color='cyan', alpha=0.8)
@@ -110,12 +114,12 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt.title('制冷系统状态和总功耗')
     plt.tight_layout()
     filename2 = os.path.join(output_dir, "plot_chiller_ac_power.png")
-    plt.savefig(filename2, dpi=plt_dpi)
+    plt.savefig(filename2, dpi=plt_dpi) # <--- 应用读取的值
     plt.close()
     print(f"Saved: {filename2}")
 
     # --- Plot 3: Vehicle Speed ---
-    plt.figure(figsize=plt_figure_size)
+    plt.figure(figsize=plt_figure_size) # <--- 应用读取的值
     plt.plot(time_minutes, v_vehicle_profile, label='车速 (km/h)', color='magenta')
     plt.ylabel('车速 (km/h)')
     plt.xlabel('时间 (分钟)')
@@ -128,12 +132,12 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt.legend(loc='best')
     plt.tight_layout()
     filename3 = os.path.join(output_dir, "plot_vehicle_speed.png")
-    plt.savefig(filename3, dpi=plt_dpi)
+    plt.savefig(filename3, dpi=plt_dpi) # <--- 应用读取的值
     plt.close()
     print(f"Saved: {filename3}")
 
     # --- Plot 4: Powertrain Heat Generation ---
-    plt.figure(figsize=plt_figure_size)
+    plt.figure(figsize=plt_figure_size) # <--- 应用读取的值
     plt.plot(time_minutes, Q_gen_motor_profile, label='电机产热 (W)', color='blue', alpha=0.8)
     plt.plot(time_minutes, Q_gen_inv_profile, label='逆变器产热 (W)', color='orange', alpha=0.8)
     plt.plot(time_minutes, Q_gen_batt_profile, label='电池产热 (W, 含空调负载)', color='green', alpha=0.8)
@@ -146,12 +150,12 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt.legend(loc='best')
     plt.tight_layout()
     filename4 = os.path.join(output_dir, "plot_heat_generation.png")
-    plt.savefig(filename4, dpi=plt_dpi)
+    plt.savefig(filename4, dpi=plt_dpi) # <--- 应用读取的值
     plt.close()
     print(f"Saved: {filename4}")
 
     # --- Plot 5: Battery Power Output Breakdown ---
-    plt.figure(figsize=plt_figure_size)
+    plt.figure(figsize=plt_figure_size) # <--- 应用读取的值
     plt.plot(time_minutes, P_inv_in_profile, label='驱动功率 (逆变器输入 W)', color='brown', alpha=0.7)
     plt.plot(time_minutes, P_comp_elec_profile, label='空调功率 (W)', color='cyan', alpha=0.7)
     plt.plot(time_minutes, P_elec_total_profile, label='总电池输出功率 (W)', color='green', linestyle='-')
@@ -164,12 +168,12 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt.legend(loc='best')
     plt.tight_layout()
     filename5 = os.path.join(output_dir, "plot_battery_power.png")
-    plt.savefig(filename5, dpi=plt_dpi)
+    plt.savefig(filename5, dpi=plt_dpi) # <--- 应用读取的值
     plt.close()
     print(f"Saved: {filename5}")
 
     # --- Plot: Cabin Cooling Power ---
-    plt.figure(figsize=plt_figure_size)
+    plt.figure(figsize=plt_figure_size) # <--- 应用读取的值
     plt.plot(time_minutes, Q_cabin_cool_profile, label='座舱制冷功率 (W)', color='teal', drawstyle='steps-post')
     plt.ylabel('座舱制冷功率 (W)')
     plt.xlabel('时间 (分钟)')
@@ -186,13 +190,13 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt.legend(loc='best')
     plt.tight_layout()
     filename_cabin_cool_power = os.path.join(output_dir, "plot_cabin_cooling_power.png")
-    plt.savefig(filename_cabin_cool_power, dpi=plt_dpi)
+    plt.savefig(filename_cabin_cool_power, dpi=plt_dpi) # <--- 应用读取的值
     plt.close()
     print(f"Saved: {filename_cabin_cool_power}")
 
 
     # --- Plot 6: Temperatures vs. Vehicle Speed (ACCELERATION PHASE ONLY) ---
-    plt.figure(figsize=plt_figure_size)
+    plt.figure(figsize=plt_figure_size) # <--- 应用读取的值
     ramp_up_steps = int(sim_params['ramp_up_time_sec'] / sim_params['dt']) if sim_params['dt'] > 0 else 0
     ramp_up_index = min(ramp_up_steps, len(v_vehicle_profile) -1 )
 
@@ -211,7 +215,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
         plt.plot(v_accel, T_coolant_accel, label='冷却液温度 (°C)', color='purple', marker='.', markersize=1, linestyle='-', alpha=0.6)
         plt.xlabel('车速 (km/h)')
         plt.ylabel('温度 (°C)')
-        plt.title(f'加速阶段部件温度随车速变化轨迹{sim_params["v_start"]}到{sim_params["v_end"]} km/h)')
+        plt.title(f'加速阶段部件温度随车速变化轨迹({sim_params["v_start"]}到{sim_params["v_end"]} km/h)') # 修正标题中的括号
         plt.legend(loc='best')
         plt.grid(True)
         if len(v_accel) > 1 :
@@ -221,7 +225,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
 
         plt.tight_layout()
         filename6 = os.path.join(output_dir, "plot_temp_vs_speed_accel.png")
-        plt.savefig(filename6, dpi=plt_dpi)
+        plt.savefig(filename6, dpi=plt_dpi) # <--- 应用读取的值
         plt.close()
         print(f"Saved: {filename6}")
     else:
@@ -229,9 +233,9 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
 
 
     # --- Plot 7: Temperatures vs. Time (CONSTANT SPEED PHASE ONLY) ---
-    plt.figure(figsize=plt_figure_size)
+    plt.figure(figsize=plt_figure_size) # <--- 应用读取的值
     const_speed_start_index = ramp_up_index + 1
-    
+
     if const_speed_start_index < n_total_points:
         time_const_speed_minutes = time_data[const_speed_start_index:] / 60
         if len(time_const_speed_minutes) > 0:
@@ -260,7 +264,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
                 plt.xlim(left=min(time_const_speed_minutes), right=max(time_const_speed_minutes))
             plt.tight_layout()
             filename7 = os.path.join(output_dir, "plot_temp_at_const_speed.png")
-            plt.savefig(filename7, dpi=plt_dpi)
+            plt.savefig(filename7, dpi=plt_dpi) # <--- 应用读取的值
             plt.close()
             print(f"Saved: {filename7}")
         else:
