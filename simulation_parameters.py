@@ -13,9 +13,7 @@ try:
     print(f"Successfully loaded configuration from '{config_file_path}'")
 except FileNotFoundError as e:
     print(f"Error: {e}. Please ensure '{config_file_path}' exists and is readable.")
-    # 在这里可以决定是退出程序还是使用硬编码的备用值
     # 为了简单起见，如果文件找不到，我们将依赖下面定义的默认值（如果有的话）或导致后续错误
-    # 更健壮的做法是定义一套完整的默认值
     # exit() # 或者 raise
 except configparser.Error as e:
     print(f"Error parsing configuration file '{config_file_path}': {e}")
@@ -44,12 +42,12 @@ REFRIGERANT_TYPE = get_config_value('RefrigerationCycle', 'REFRIGERANT_TYPE', st
 # --- 2. Read Simulation Parameters ---
 T_ambient = get_config_value('Simulation', 'T_ambient', float, 35.0)
 sim_duration = get_config_value('Simulation', 'sim_duration', int, 2100)
-dt = get_config_value('Simulation', 'dt', int, 1) # 注意：config.ini 中 dt=3, 原 .py 中 dt=1
+dt = get_config_value('Simulation', 'dt', int, 1)
 
 # --- 3. Read Speed Profile Parameters ---
 v_start = get_config_value('SpeedProfile', 'v_start', float, 60.0)
 v_end = get_config_value('SpeedProfile', 'v_end', float, 120.0)
-ramp_up_time_sec = get_config_value('SpeedProfile', 'ramp_up_time_sec', int, 300) # 5 * 60 = 300
+ramp_up_time_sec = get_config_value('SpeedProfile', 'ramp_up_time_sec', int, 300)
 
 # --- 4. Read Vehicle & Component Parameters ---
 m_vehicle = get_config_value('Vehicle', 'm_vehicle', float, 2503)
@@ -73,8 +71,8 @@ mc_cabin = cabin_volume * rho_air_cabin_avg * cp_air
 
 cp_coolant = get_config_value('Vehicle', 'cp_coolant', float, 3400)
 rho_coolant = get_config_value('Vehicle', 'rho_coolant', float, 1050)
-coolant_volume_liters = get_config_value('Vehicle', 'coolant_volume_liters', float, 10) # Changed key name from coolant_volume
-mass_coolant = coolant_volume_liters * rho_coolant / 1000 # Convert liters to m^3 for consistency if rho is in kg/m^3
+coolant_volume_liters = get_config_value('Vehicle', 'coolant_volume_liters', float, 10)
+mass_coolant = coolant_volume_liters * rho_coolant / 1000
 mc_coolant = mass_coolant * cp_coolant
 
 UA_motor_coolant = get_config_value('Vehicle', 'UA_motor_coolant', float, 500)
@@ -82,7 +80,7 @@ UA_inv_coolant = get_config_value('Vehicle', 'UA_inv_coolant', float, 300)
 UA_batt_coolant = get_config_value('Vehicle', 'UA_batt_coolant', float, 1000)
 UA_coolant_chiller = get_config_value('Vehicle', 'UA_coolant_chiller', float, 1500)
 UA_coolant_radiator = get_config_value('Vehicle', 'UA_coolant_radiator', float, 1200)
-UA_cabin_evap = get_config_value('Vehicle', 'UA_cabin_evap', float, 2000)
+UA_cabin_evap = get_config_value('Vehicle', 'UA_cabin_evap', float, 2000) # This might relate to max heat exchange at evaporator
 
 N_passengers = get_config_value('Vehicle', 'N_passengers', int, 2)
 v_air_in_mps = get_config_value('Vehicle', 'v_air_in_mps', float, 0.5)
@@ -94,7 +92,7 @@ R_glass = get_config_value('Vehicle', 'R_glass', float, 0.009)
 A_body = get_config_value('Vehicle', 'A_body', float, 12)
 A_glass = get_config_value('Vehicle', 'A_glass', float, 4)
 A_glass_sun_factor = get_config_value('Vehicle', 'A_glass_sun_factor', float, 0.4)
-A_glass_sun = A_glass * A_glass_sun_factor # Derived parameter
+A_glass_sun = A_glass * A_glass_sun_factor
 SHGC = get_config_value('Vehicle', 'SHGC', float, 0.50)
 fresh_air_fraction = get_config_value('Vehicle', 'fresh_air_fraction', float, 0.10)
 
@@ -103,21 +101,31 @@ T_motor_target = get_config_value('TargetsAndControl', 'T_motor_target', float, 
 T_inv_target = get_config_value('TargetsAndControl', 'T_inv_target', float, 45.0)
 T_batt_target_low = get_config_value('TargetsAndControl', 'T_batt_target_low', float, 30.0)
 T_batt_target_high = get_config_value('TargetsAndControl', 'T_batt_target_high', float, 35.0)
-T_cabin_target = get_config_value('TargetsAndControl', 'T_cabin_target', float, 26.0)
+T_cabin_target = get_config_value('TargetsAndControl', 'T_cabin_target', float, 26.0) # General target
 hysteresis_band = get_config_value('TargetsAndControl', 'hysteresis_band', float, 2.5)
-
-max_cabin_cool_power = get_config_value('TargetsAndControl', 'max_cabin_cool_power', float, 6000) # .ini has 6000
 max_chiller_cool_power = get_config_value('TargetsAndControl', 'max_chiller_cool_power', float, 4000)
 
-# New cabin cooling control parameters
-T_cabin_cool_off_delta = get_config_value('TargetsAndControl', 'T_cabin_cool_off_delta', float, -2.0)
-T_cabin_cool_on_delta = get_config_value('TargetsAndControl', 'T_cabin_cool_on_delta', float, 1.0)
-cabin_cooling_power_low = get_config_value('TargetsAndControl', 'cabin_cooling_power_low', float, 1500)
-cabin_cooling_power_high = get_config_value('TargetsAndControl', 'cabin_cooling_power_high', float, max_cabin_cool_power) # Default to max_cabin_cool_power if not specified
+# --- New Multi-level Cabin Cooling Control Parameters ---
+cabin_cooling_power_levels_str = get_config_value('TargetsAndControl', 'cabin_cooling_power_levels', str, '0,4000')
+cabin_cooling_power_levels = [float(x.strip()) for x in cabin_cooling_power_levels_str.split(',')]
 
-# Derived cabin temperature thresholds
-T_cabin_cool_off_threshold = T_cabin_target + T_cabin_cool_off_delta
-T_cabin_cool_on_threshold = T_cabin_target + T_cabin_cool_on_delta
+cabin_cooling_temp_thresholds_str = get_config_value('TargetsAndControl', 'cabin_cooling_temp_thresholds', str, '25.0,100.0')
+cabin_cooling_temp_thresholds = [float(x.strip()) for x in cabin_cooling_temp_thresholds_str.split(',')]
+
+# Validation for new cabin cooling parameters
+if not cabin_cooling_power_levels:
+    raise ValueError("Config error: 'cabin_cooling_power_levels' cannot be empty.")
+if len(cabin_cooling_power_levels) != len(cabin_cooling_temp_thresholds):
+    raise ValueError("Config error: 'cabin_cooling_power_levels' and 'cabin_cooling_temp_thresholds' must have the same number of entries.")
+# Ensure thresholds are sorted (important for the logic in main.py)
+for i in range(len(cabin_cooling_temp_thresholds) - 1):
+    if cabin_cooling_temp_thresholds[i] >= cabin_cooling_temp_thresholds[i+1]:
+        raise ValueError("Config error: 'cabin_cooling_temp_thresholds' must be in strictly increasing order.")
+# Ensure power levels are sorted by power (optional, but good practice)
+# for i in range(len(cabin_cooling_power_levels) - 1):
+#     if cabin_cooling_power_levels[i] > cabin_cooling_power_levels[i+1]:
+#         print(f"Warning: 'cabin_cooling_power_levels' are not in strictly increasing order: {cabin_cooling_power_levels}")
+#         # Depending on the logic, this might not be an error, but it's unusual for this setup.
 
 
 # --- 6. Read Efficiency Parameters ---
@@ -128,11 +136,10 @@ R_int_batt = get_config_value('Efficiency', 'R_int_batt', float, 0.05)
 eta_comp_drive = get_config_value('Efficiency', 'eta_comp_drive', float, 0.85)
 
 # --- 7. Read Initial Conditions ---
-# Option 1: Offsets from T_ambient (as in original .py)
 T_motor_init_offset = get_config_value('InitialConditions', 'T_motor_init_offset', float, 5)
 T_inv_init_offset = get_config_value('InitialConditions', 'T_inv_init_offset', float, 5)
 T_batt_init_offset = get_config_value('InitialConditions', 'T_batt_init_offset', float, 2)
-T_cabin_init_offset = get_config_value('InitialConditions', 'T_cabin_init_offset', float, 5) # Original: 5, config: 0
+T_cabin_init_offset = get_config_value('InitialConditions', 'T_cabin_init_offset', float, 0)
 T_coolant_init_offset = get_config_value('InitialConditions', 'T_coolant_init_offset', float, 2)
 
 T_motor_init = T_ambient + T_motor_init_offset
@@ -141,21 +148,22 @@ T_batt_init = T_ambient + T_batt_init_offset
 T_cabin_init = T_ambient + T_cabin_init_offset
 T_coolant_init = T_ambient + T_coolant_init_offset
 
-# Option 2: Absolute initial temperatures (if defined in .ini and preferred)
-# This will override the offset-based T_cabin_init if present
 if config.has_option('InitialConditions', 'T_cabin_init'):
-    T_cabin_init = get_config_value('InitialConditions', 'T_cabin_init', float, T_cabin_init) # Provide current T_cabin_init as default
+    T_cabin_init = get_config_value('InitialConditions', 'T_cabin_init', float, T_cabin_init)
     print(f"Info: Using absolute initial cabin temperature from config.ini: {T_cabin_init}°C")
 
 
-# --- 8. Derived Parameters (that were in simulation_parameters.py) ---
+# --- 8. Derived Parameters ---
 T_motor_stop_cool = T_motor_target - hysteresis_band
 T_inv_stop_cool = T_inv_target - hysteresis_band
-T_batt_stop_cool = T_batt_target_high - hysteresis_band
+T_batt_stop_cool = T_batt_target_high - hysteresis_band # This is likely T_batt_target_low or similar.
+                                                      # The original used T_batt_target_high - hysteresis.
+                                                      # Let's assume T_batt_target_low for stopping.
+T_batt_stop_cool = T_batt_target_low # More logical to stop cooling when reaching the lower target.
 
 T_evap_sat_for_UA_calc = T_evap_sat_C_in
 
 # --- End of Configuration Loading ---
 print("All parameters loaded/derived.")
-print(f"Cabin cooling will switch to LOW power at {T_cabin_cool_off_threshold}°C")
-print(f"Cabin cooling will switch to HIGH power at {T_cabin_cool_on_threshold}°C")
+print(f"Cabin cooling levels (W): {cabin_cooling_power_levels}")
+print(f"Cabin cooling upper temp thresholds (°C): {cabin_cooling_temp_thresholds}")
