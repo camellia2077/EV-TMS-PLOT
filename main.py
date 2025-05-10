@@ -8,7 +8,15 @@ import heat_cabin as ht
 import refrigeration_cycle as rc
 import simulation_parameters as sp # sp now loads all plotting font sizes
 import plotting
-
+# --- 0. 打印输入的制冷循环参数 ---
+print("\n--- 初始制冷循环输入参数 ---")
+print(f"压缩机入口过热度 (T_suc_C_in): {sp.T_suc_C_in}°C")
+print(f"冷凝饱和温度 (T_cond_sat_C_in): {sp.T_cond_sat_C_in}°C")
+print(f"冷凝器出口过冷度 (T_be_C_in): {sp.T_be_C_in}°C") # 通常 T_be_C_in 指的是冷凝器出口温度，其与饱和冷凝温度的差值为过冷度
+print(f"蒸发饱和温度 (T_evap_sat_C_in): {sp.T_evap_sat_C_in}°C")
+print(f"压缩机排气温度 (T_dis_C_in): {sp.T_dis_C_in}°C")
+print(f"制冷剂类型 (REFRIGERANT_TYPE): {sp.REFRIGERANT_TYPE}")
+print("----------------------------------------------------")
 # --- 1. Calculate Refrigeration COP ---
 COP, cycle_data = rc.calculate_refrigeration_cop(
     sp.T_suc_C_in, sp.T_cond_sat_C_in, sp.T_be_C_in,
