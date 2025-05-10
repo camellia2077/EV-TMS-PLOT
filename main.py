@@ -6,7 +6,7 @@ import numpy as np
 import heat_vehicle as hv
 import heat_cabin as ht
 import refrigeration_cycle as rc
-import simulation_parameters as sp
+import simulation_parameters as sp # sp now loads all plotting font sizes
 import plotting
 
 # --- 1. Calculate Refrigeration COP ---
@@ -74,7 +74,7 @@ for i in range(n_steps):
     P_wheel = hv.P_wheel_func(v_vehicle_current, sp.m_vehicle, sp.T_ambient)
     P_motor_in = hv.P_motor_func(P_wheel, sp.eta_motor)
     P_inv_in = P_motor_in / sp.eta_inv if sp.eta_inv > 0 else 0
-    
+
     Q_gen_motor = hv.Q_mot_func(P_motor_in, sp.eta_motor)
     Q_gen_inv = hv.Q_inv_func(P_motor_in, sp.eta_inv)
     Q_gen_motor_profile_hist[i] = Q_gen_motor
@@ -94,7 +94,7 @@ for i in range(n_steps):
         if current_cabin_temp <= sp.cabin_cooling_temp_thresholds[j]:
             Q_cabin_cool_actual = sp.cabin_cooling_power_levels[j]
             break
-            
+
     # Ensure non-negative cooling power
     Q_cabin_cool_actual = max(0, Q_cabin_cool_actual)
     Q_out_cabin = Q_cabin_cool_actual
@@ -120,17 +120,17 @@ for i in range(n_steps):
         powertrain_chiller_on = True
     elif stop_cooling_powertrain:
         powertrain_chiller_on = False
-    
+
     Q_chiller_potential = sp.UA_coolant_chiller * (T_coolant_hist[i] - sp.T_evap_sat_for_UA_calc) if T_coolant_hist[i] > sp.T_evap_sat_for_UA_calc else 0
     Q_coolant_chiller_actual = min(Q_chiller_potential, sp.max_chiller_cool_power) if powertrain_chiller_on else 0
     powertrain_chiller_active_log[i] = 1 if powertrain_chiller_on and Q_coolant_chiller_actual > 0 else 0
-    
+
     Q_coolant_reject = Q_coolant_chiller_actual + Q_coolant_radiator
 
     # 3.7. Calculate AC Compressor Power
     P_comp_elec = 0.0
     Q_evap_total_needed = Q_out_cabin + Q_coolant_chiller_actual
-    
+
     if Q_evap_total_needed > 0:
         if COP > 0 and COP != float('inf') and sp.eta_comp_drive > 0:
             P_comp_mech = Q_evap_total_needed / COP
@@ -214,17 +214,21 @@ sim_params_dict = {
     'ramp_up_time_sec': sp.ramp_up_time_sec,
     'cabin_cooling_temp_thresholds': sp.cabin_cooling_temp_thresholds,
     'cabin_cooling_power_levels': sp.cabin_cooling_power_levels,
-    # --- 新增绘图参数到字典 ---
+    # --- 从 sp 模块传递所有绘图参数 ---
     'figure_width_inches': sp.figure_width_inches,
     'figure_height_inches': sp.figure_height_inches,
-    'figure_dpi': sp.figure_dpi
+    'figure_dpi': sp.figure_dpi,
+    'legend_font_size': sp.legend_font_size,
+    'axis_label_font_size': sp.axis_label_font_size,   # 新增
+    'tick_label_font_size': sp.tick_label_font_size,  # 新增
+    'title_font_size': sp.title_font_size           # 新增
 }
 
 plotting.plot_results(
     time_sim, temperatures_data, powertrain_chiller_active_log,
     P_comp_elec_profile_hist, Q_cabin_cool_actual_hist,
     v_vehicle_profile_hist, heat_gen_data, battery_power_data,
-    sim_params_dict, COP # sim_params_dict 现在包含了绘图设置
+    sim_params_dict, COP
 )
 
 print("Main script finished.")
