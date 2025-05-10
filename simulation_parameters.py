@@ -44,11 +44,11 @@ T_ambient = get_config_value('Simulation', 'T_ambient', float, 35.0)
 sim_duration = get_config_value('Simulation', 'sim_duration', int, 2100)
 dt = get_config_value('Simulation', 'dt', int, 1)
 
-# --- Read Plotting Parameters --- # <--- 新增读取代码
+# --- Read Plotting Parameters --- 
 figure_width_inches = get_config_value('Plotting', 'figure_width_inches', float, 18)
 figure_height_inches = get_config_value('Plotting', 'figure_height_inches', float, 8)
 figure_dpi = get_config_value('Plotting', 'figure_dpi', int, 300)
-
+legend_font_size = get_config_value('Plotting', 'legend_font_size', int, 15)#图示字体大小
 
 # --- 3. Read Speed Profile Parameters ---
 v_start = get_config_value('SpeedProfile', 'v_start', float, 60.0)
