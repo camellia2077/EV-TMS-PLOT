@@ -44,11 +44,14 @@ T_ambient = get_config_value('Simulation', 'T_ambient', float, 35.0)
 sim_duration = get_config_value('Simulation', 'sim_duration', int, 2100)
 dt = get_config_value('Simulation', 'dt', int, 1)
 
-# --- Read Plotting Parameters --- 
+# --- Read Plotting Parameters ---
 figure_width_inches = get_config_value('Plotting', 'figure_width_inches', float, 18)
 figure_height_inches = get_config_value('Plotting', 'figure_height_inches', float, 8)
 figure_dpi = get_config_value('Plotting', 'figure_dpi', int, 300)
-legend_font_size = get_config_value('Plotting', 'legend_font_size', int, 15)#图示字体大小
+legend_font_size = get_config_value('Plotting', 'legend_font_size', int, 10)
+axis_label_font_size = get_config_value('Plotting', 'axis_label_font_size', int, 12) # 新增
+tick_label_font_size = get_config_value('Plotting', 'tick_label_font_size', int, 10) # 新增
+title_font_size = get_config_value('Plotting', 'title_font_size', int, 14)         # 新增
 
 # --- 3. Read Speed Profile Parameters ---
 v_start = get_config_value('SpeedProfile', 'v_start', float, 60.0)
@@ -127,12 +130,6 @@ if len(cabin_cooling_power_levels) != len(cabin_cooling_temp_thresholds):
 for i in range(len(cabin_cooling_temp_thresholds) - 1):
     if cabin_cooling_temp_thresholds[i] >= cabin_cooling_temp_thresholds[i+1]:
         raise ValueError("Config error: 'cabin_cooling_temp_thresholds' must be in strictly increasing order.")
-# Ensure power levels are sorted by power (optional, but good practice)
-# for i in range(len(cabin_cooling_power_levels) - 1):
-#     if cabin_cooling_power_levels[i] > cabin_cooling_power_levels[i+1]:
-#         print(f"Warning: 'cabin_cooling_power_levels' are not in strictly increasing order: {cabin_cooling_power_levels}")
-#         # Depending on the logic, this might not be an error, but it's unusual for this setup.
-
 
 # --- 6. Read Efficiency Parameters ---
 eta_motor = get_config_value('Efficiency', 'eta_motor', float, 0.95)
@@ -162,15 +159,12 @@ if config.has_option('InitialConditions', 'T_cabin_init'):
 # --- 8. Derived Parameters ---
 T_motor_stop_cool = T_motor_target - hysteresis_band
 T_inv_stop_cool = T_inv_target - hysteresis_band
-T_batt_stop_cool = T_batt_target_high - hysteresis_band # This is likely T_batt_target_low or similar.
-                                                      # The original used T_batt_target_high - hysteresis.
-                                                      # Let's assume T_batt_target_low for stopping.
 T_batt_stop_cool = T_batt_target_low # More logical to stop cooling when reaching the lower target.
 
 T_evap_sat_for_UA_calc = T_evap_sat_C_in
 
 # --- End of Configuration Loading ---
 print("All parameters loaded/derived.")
-print(f"Plot settings: Size=({figure_width_inches}, {figure_height_inches}), DPI={figure_dpi}") # <--- (可选) 打印确认
+print(f"Plot settings: Size=({figure_width_inches}, {figure_height_inches}), DPI={figure_dpi}, LegendFS={legend_font_size}, AxisLabelFS={axis_label_font_size}, TickLabelFS={tick_label_font_size}, TitleFS={title_font_size}")
 print(f"Cabin cooling levels (W): {cabin_cooling_power_levels}")
 print(f"Cabin cooling upper temp thresholds (°C): {cabin_cooling_temp_thresholds}")
