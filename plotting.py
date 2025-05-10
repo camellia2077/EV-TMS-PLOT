@@ -31,6 +31,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt_figure_size = (sim_params.get('figure_width_inches', fig_width),
                        sim_params.get('figure_height_inches', fig_height))
     plt_dpi = sim_params.get('figure_dpi', fig_dpi)
+    legend_font_size = sim_params.get('legend_font_size', 10)#字体大小
 
     time_minutes = time_data / 60
     n_total_points = len(time_data)
@@ -87,7 +88,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt.xlabel('时间 (分钟)')
     plt.xlim(left=0, right=sim_params['sim_duration']/60)
     plt.title(f'部件估算温度 (加速与匀速过程 {sim_params["v_start"]}-{sim_params["v_end"]}km/h, 含空调, COP={cop_value:.2f}, 环境={sim_params["T_ambient"]}°C)')
-    plt.legend(loc='best', fontsize='small')
+    plt.legend(loc='best', fontsize=legend_font_size)#字体大小
     plt.grid(True)
     plt.tight_layout()
     filename1 = os.path.join(output_dir, "plot_temperatures.png")
@@ -114,12 +115,12 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt.title('制冷系统状态和总功耗')
     plt.tight_layout()
     filename2 = os.path.join(output_dir, "plot_chiller_ac_power.png")
-    plt.savefig(filename2, dpi=plt_dpi) # <--- 应用读取的值
+    plt.savefig(filename2, dpi=plt_dpi) 
     plt.close()
     print(f"Saved: {filename2}")
 
     # --- Plot 3: Vehicle Speed ---
-    plt.figure(figsize=plt_figure_size) # <--- 应用读取的值
+    plt.figure(figsize=plt_figure_size) 
     plt.plot(time_minutes, v_vehicle_profile, label='车速 (km/h)', color='magenta')
     plt.ylabel('车速 (km/h)')
     plt.xlabel('时间 (分钟)')
@@ -129,8 +130,8 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt.ylim(max(0, v_min_plot), v_max_plot) # Ensure y starts at 0 or just below min speed
     plt.title(f'车辆速度变化曲线 ({sim_params["v_start"]}到{sim_params["v_end"]}km/h)')
     plt.grid(True)
-    plt.legend(loc='best')
     plt.tight_layout()
+    plt.legend(loc='best', fontsize=legend_font_size)
     filename3 = os.path.join(output_dir, "plot_vehicle_speed.png")
     plt.savefig(filename3, dpi=plt_dpi) # <--- 应用读取的值
     plt.close()
@@ -147,7 +148,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt.ylim(bottom=0)
     plt.title('主要部件产热功率')
     plt.grid(True)
-    plt.legend(loc='best')
+    plt.legend(loc='best', fontsize=legend_font_size)
     plt.tight_layout()
     filename4 = os.path.join(output_dir, "plot_heat_generation.png")
     plt.savefig(filename4, dpi=plt_dpi) # <--- 应用读取的值
@@ -165,7 +166,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
     plt.ylim(bottom=0)
     plt.title('电池输出功率分解')
     plt.grid(True)
-    plt.legend(loc='best')
+    plt.legend(loc='best', fontsize=legend_font_size)
     plt.tight_layout()
     filename5 = os.path.join(output_dir, "plot_battery_power.png")
     plt.savefig(filename5, dpi=plt_dpi) # <--- 应用读取的值
@@ -187,7 +188,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
         plt.ylim(bottom=0)
     plt.title('座舱实际制冷功率变化')
     plt.grid(True)
-    plt.legend(loc='best')
+    plt.legend(loc='best', fontsize=legend_font_size)#图示字体大小
     plt.tight_layout()
     filename_cabin_cool_power = os.path.join(output_dir, "plot_cabin_cooling_power.png")
     plt.savefig(filename_cabin_cool_power, dpi=plt_dpi) # <--- 应用读取的值
@@ -216,7 +217,7 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
         plt.xlabel('车速 (km/h)')
         plt.ylabel('温度 (°C)')
         plt.title(f'加速阶段部件温度随车速变化轨迹({sim_params["v_start"]}到{sim_params["v_end"]} km/h)') # 修正标题中的括号
-        plt.legend(loc='best')
+        plt.legend(loc='best', fontsize=legend_font_size)
         plt.grid(True)
         if len(v_accel) > 1 :
              plt.xlim(left=min(v_accel), right=max(v_accel))
@@ -258,13 +259,13 @@ def plot_results(time_data, temperatures, chiller_log, ac_power_log, cabin_cool_
             plt.xlabel('时间 (分钟)')
             plt.ylabel('温度 (°C)')
             plt.title(f'部件温度变化 (匀速 {sim_params["v_end"]} km/h 阶段)')
-            plt.legend(loc='best')
+            plt.legend(loc='best', fontsize=legend_font_size)
             plt.grid(True)
             if len(time_const_speed_minutes) > 0:
                 plt.xlim(left=min(time_const_speed_minutes), right=max(time_const_speed_minutes))
             plt.tight_layout()
             filename7 = os.path.join(output_dir, "plot_temp_at_const_speed.png")
-            plt.savefig(filename7, dpi=plt_dpi) # <--- 应用读取的值
+            plt.savefig(filename7, dpi=plt_dpi)
             plt.close()
             print(f"Saved: {filename7}")
         else:
