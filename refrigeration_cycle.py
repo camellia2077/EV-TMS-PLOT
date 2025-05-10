@@ -8,6 +8,21 @@ def calculate_refrigeration_cop(T_suc_C, T_cond_sat_C, T_be_C, T_evap_sat_C, T_d
     """
     cop_value = 0.0
     cycle_details = {}
+    # 定义一个字典来存储各项参数的单位
+    units = {
+        "P_evap_bar": "bar",
+        "T_evap_sat_C": "°C",
+        "P_cond_bar": "bar",
+        "T_cond_sat_C": "°C",
+        "T_C": "°C", # 用于 state 字典中的温度
+        "P_bar": "bar", # 用于 state 字典中的压力
+        "h_kJ_kg": "kJ/kg", # 用于 state 字典中的焓值
+        "w_comp_spec_kJ_kg": "kJ/kg",
+        "q_evap_spec_kJ_kg": "kJ/kg",
+        "q_cond_spec_kJ_kg": "kJ/kg",
+        "COP": "" # COP 是无量纲的，所以单位为空字符串
+    }
+
     try:
         T_suc_K = T_suc_C + 273.15
         T_cond_sat_K = T_cond_sat_C + 273.15
@@ -20,7 +35,7 @@ def calculate_refrigeration_cop(T_suc_C, T_cond_sat_C, T_be_C, T_evap_sat_C, T_d
 
         h1 = CP.PropsSI('H', 'T', T_suc_K, 'P', P_evap, REFRIGERANT)
         s1 = CP.PropsSI('S', 'T', T_suc_K, 'P', P_evap, REFRIGERANT)
-        
+
         if T_dis_K <= T_cond_sat_K:
             print(f"Warning (CoolProp): Provided T_dis ({T_dis_C}°C) is not above T_cond_sat ({T_cond_sat_C}°C). Check inputs.")
         h2 = CP.PropsSI('H', 'T', T_dis_K, 'P', P_cond, REFRIGERANT)
@@ -47,20 +62,31 @@ def calculate_refrigeration_cop(T_suc_C, T_cond_sat_C, T_be_C, T_evap_sat_C, T_d
             "state1": {"T_C": T_suc_C, "P_bar": P_evap/1e5, "h_kJ_kg": h1/1000},
             "state2": {"T_C": T_dis_C, "P_bar": P_cond/1e5, "h_kJ_kg": h2/1000},
             "state3": {"T_C": T_be_C, "P_bar": P_cond/1e5, "h_kJ_kg": h3/1000},
-            "state4": {"P_bar": P_evap/1e5, "h_kJ_kg": h4/1000, "T_sat_C": T_evap_sat_C},
+            "state4": {"P_bar": P_evap/1e5, "h_kJ_kg": h4/1000, "T_sat_C": T_evap_sat_C}, # 注意这里 T_sat_C 的单位也需要添加
             "w_comp_spec_kJ_kg": w_comp_spec/1000,
             "q_evap_spec_kJ_kg": q_evap_spec/1000,
             "q_cond_spec_kJ_kg": q_cond_spec/1000,
             "COP": cop_value
         }
+        # 为了更清晰地添加单位，我们更新一下 units 字典
+        units["T_sat_C"] = "°C" # 为 state4 中的 T_sat_C 添加单位
+
         print("--- Refrigeration Cycle Analysis (using CoolProp) ---")
         for key, value in cycle_details.items():
+            unit_str = units.get(key, "") # 获取单位，如果未定义则为空字符串
             if isinstance(value, dict): # Nicer print for states
                  print(f"{key.replace('_', ' ').title()}:")
                  for sub_key, sub_val in value.items():
-                     print(f"  {sub_key}: {sub_val:.3f}" if isinstance(sub_val, float) else f"  {sub_key}: {sub_val}")
+                     sub_unit_str = units.get(sub_key, "") # 获取子条目的单位
+                     if isinstance(sub_val, float):
+                         print(f"  {sub_key}: {sub_val:.3f} {sub_unit_str}")
+                     else:
+                         print(f"  {sub_key}: {sub_val} {sub_unit_str}")
             else:
-                 print(f"{key.replace('_', ' ').title()}: {value:.3f}" if isinstance(value, float) else f"{key.replace('_', ' ').title()}: {value}")
+                 if isinstance(value, float):
+                     print(f"{key.replace('_', ' ').title()}: {value:.3f} {unit_str}")
+                 else:
+                     print(f"{key.replace('_', ' ').title()}: {value} {unit_str}")
         print("----------------------------------------------------\n")
 
 
@@ -77,5 +103,5 @@ def calculate_refrigeration_cop(T_suc_C, T_cond_sat_C, T_be_C, T_evap_sat_C, T_d
         print(f"\n*** An unexpected error occurred with CoolProp: {e} ***\n")
         cop_value = 2.5
         print(f"Warning: Using default COP = {cop_value}\n")
-    
+
     return cop_value, cycle_details
