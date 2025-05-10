@@ -49,9 +49,9 @@ figure_width_inches = get_config_value('Plotting', 'figure_width_inches', float,
 figure_height_inches = get_config_value('Plotting', 'figure_height_inches', float, 8)
 figure_dpi = get_config_value('Plotting', 'figure_dpi', int, 300)
 legend_font_size = get_config_value('Plotting', 'legend_font_size', int, 10)
-axis_label_font_size = get_config_value('Plotting', 'axis_label_font_size', int, 12) # 新增
-tick_label_font_size = get_config_value('Plotting', 'tick_label_font_size', int, 10) # 新增
-title_font_size = get_config_value('Plotting', 'title_font_size', int, 14)         # 新增
+axis_label_font_size = get_config_value('Plotting', 'axis_label_font_size', int, 12)
+tick_label_font_size = get_config_value('Plotting', 'tick_label_font_size', int, 10)
+title_font_size = get_config_value('Plotting', 'title_font_size', int, 14)
 
 # --- 3. Read Speed Profile Parameters ---
 v_start = get_config_value('SpeedProfile', 'v_start', float, 60.0)
@@ -88,8 +88,9 @@ UA_motor_coolant = get_config_value('Vehicle', 'UA_motor_coolant', float, 500)
 UA_inv_coolant = get_config_value('Vehicle', 'UA_inv_coolant', float, 300)
 UA_batt_coolant = get_config_value('Vehicle', 'UA_batt_coolant', float, 1000)
 UA_coolant_chiller = get_config_value('Vehicle', 'UA_coolant_chiller', float, 1500)
-UA_coolant_radiator = get_config_value('Vehicle', 'UA_coolant_radiator', float, 1200)
-UA_cabin_evap = get_config_value('Vehicle', 'UA_cabin_evap', float, 2000) # This might relate to max heat exchange at evaporator
+# 重命名 UA_coolant_radiator 为 UA_coolant_radiator_max，表示散热器最大能力
+UA_coolant_radiator_max = get_config_value('Vehicle', 'UA_coolant_radiator', float, 1200)
+UA_cabin_evap = get_config_value('Vehicle', 'UA_cabin_evap', float, 2000)
 
 N_passengers = get_config_value('Vehicle', 'N_passengers', int, 2)
 v_air_in_mps = get_config_value('Vehicle', 'v_air_in_mps', float, 0.5)
@@ -110,9 +111,17 @@ T_motor_target = get_config_value('TargetsAndControl', 'T_motor_target', float, 
 T_inv_target = get_config_value('TargetsAndControl', 'T_inv_target', float, 45.0)
 T_batt_target_low = get_config_value('TargetsAndControl', 'T_batt_target_low', float, 30.0)
 T_batt_target_high = get_config_value('TargetsAndControl', 'T_batt_target_high', float, 35.0)
-T_cabin_target = get_config_value('TargetsAndControl', 'T_cabin_target', float, 26.0) # General target
+T_cabin_target = get_config_value('TargetsAndControl', 'T_cabin_target', float, 26.0)
 hysteresis_band = get_config_value('TargetsAndControl', 'hysteresis_band', float, 2.5)
 max_chiller_cool_power = get_config_value('TargetsAndControl', 'max_chiller_cool_power', float, 4000)
+
+# 新增：当部件达到目标温度后，散热器的效能降低因子 (0.0 到 1.0, 1.0 表示全功率)
+# 当所有被控部件（电机、逆变器、电池）的温度都低于或等于其各自的目标温度时，散热器的效能因子
+radiator_effectiveness_at_target = get_config_value('TargetsAndControl', 'radiator_effectiveness_at_target', float, 0.3)
+# 新增：当部件温度远低于目标温度时（例如，低于 T_stop_cool），散热器的效能进一步降低因子
+# 当所有被控部件的温度都低于其各自的 T_stop_cool 阈值时，散热器的效能因子
+radiator_effectiveness_below_stop_cool = get_config_value('TargetsAndControl', 'radiator_effectiveness_below_stop_cool', float, 0.1)
+
 
 # --- New Multi-level Cabin Cooling Control Parameters ---
 cabin_cooling_power_levels_str = get_config_value('TargetsAndControl', 'cabin_cooling_power_levels', str, '0,4000')
@@ -121,12 +130,10 @@ cabin_cooling_power_levels = [float(x.strip()) for x in cabin_cooling_power_leve
 cabin_cooling_temp_thresholds_str = get_config_value('TargetsAndControl', 'cabin_cooling_temp_thresholds', str, '25.0,100.0')
 cabin_cooling_temp_thresholds = [float(x.strip()) for x in cabin_cooling_temp_thresholds_str.split(',')]
 
-# Validation for new cabin cooling parameters
 if not cabin_cooling_power_levels:
     raise ValueError("Config error: 'cabin_cooling_power_levels' cannot be empty.")
 if len(cabin_cooling_power_levels) != len(cabin_cooling_temp_thresholds):
     raise ValueError("Config error: 'cabin_cooling_power_levels' and 'cabin_cooling_temp_thresholds' must have the same number of entries.")
-# Ensure thresholds are sorted (important for the logic in main.py)
 for i in range(len(cabin_cooling_temp_thresholds) - 1):
     if cabin_cooling_temp_thresholds[i] >= cabin_cooling_temp_thresholds[i+1]:
         raise ValueError("Config error: 'cabin_cooling_temp_thresholds' must be in strictly increasing order.")
@@ -159,7 +166,7 @@ if config.has_option('InitialConditions', 'T_cabin_init'):
 # --- 8. Derived Parameters ---
 T_motor_stop_cool = T_motor_target - hysteresis_band
 T_inv_stop_cool = T_inv_target - hysteresis_band
-T_batt_stop_cool = T_batt_target_low # More logical to stop cooling when reaching the lower target.
+T_batt_stop_cool = T_batt_target_low
 
 T_evap_sat_for_UA_calc = T_evap_sat_C_in
 
@@ -168,3 +175,5 @@ print("All parameters loaded/derived.")
 print(f"Plot settings: Size=({figure_width_inches}, {figure_height_inches}), DPI={figure_dpi}, LegendFS={legend_font_size}, AxisLabelFS={axis_label_font_size}, TickLabelFS={tick_label_font_size}, TitleFS={title_font_size}")
 print(f"Cabin cooling levels (W): {cabin_cooling_power_levels}")
 print(f"Cabin cooling upper temp thresholds (°C): {cabin_cooling_temp_thresholds}")
+print(f"Radiator effectiveness at target: {radiator_effectiveness_at_target}")
+print(f"Radiator effectiveness below stop cool: {radiator_effectiveness_below_stop_cool}")
