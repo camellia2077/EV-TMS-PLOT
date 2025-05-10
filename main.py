@@ -251,7 +251,7 @@ all_temperature_extrema = plotting.plot_results( # 修改：接收返回值
     cooling_system_logs=cooling_system_logs
 )
 
-# --- 6. Print Extrema Coordinates ---
+# --- 6. 部件温度极值点 ---
 print("\n--- Local Temperature Extrema ---")
 for component_name, extrema in all_temperature_extrema.items():
     if extrema['minima']:
@@ -262,6 +262,32 @@ for component_name, extrema in all_temperature_extrema.items():
         print(f"\n{component_name} - 局部最高点:")
         for time_min, temp_c in extrema['maxima']:
             print(f"  时间: {time_min:.2f} 分钟, 温度: {temp_c:.2f} °C")
-print("\n---------------------------------")
+# --- 7. Print Powertrain Chiller State Transition Points ---
+print("\n--- Chiller 状态 Transition Points ---")
+if n_steps > 0: # Ensure there's more than one state to compare
+
+    found_transitions = False
+
+    for k in range(1, n_steps + 1): # Iterate from the second element up to the last
+        # State at current time step k (time_sim[k])
+        current_chiller_state = powertrain_chiller_active_log[k]
+        # State at previous time step k-1 (time_sim[k-1])
+        previous_chiller_state = powertrain_chiller_active_log[k-1]
+
+        if current_chiller_state != previous_chiller_state:
+            transition_time_sec = time_sim[k] # The change is observed at this time step
+            transition_time_min = transition_time_sec / 60
+            if current_chiller_state == 1 and previous_chiller_state == 0:
+                print(f"  Transition: OFF (0) -> ON (1) at Time: {transition_time_sec:.2f} s ({transition_time_min:.2f} min)")
+                found_transitions = True
+            elif current_chiller_state == 0 and previous_chiller_state == 1:
+                print(f"  Transition: ON (1) -> OFF (0) at Time: {transition_time_sec:.2f} s ({transition_time_min:.2f} min)")
+                found_transitions = True
+            # else: This case should not happen for boolean 0/1 states if they are distinct.
+
+    if not found_transitions:
+        print("  No powertrain chiller state transitions recorded during the simulation.")
+else:
+    print("  Simulation has less than 2 steps, cannot detect transitions.")
 
 print("Main script finished.")
