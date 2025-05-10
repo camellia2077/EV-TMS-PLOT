@@ -26,12 +26,16 @@ T_batt_hist = np.zeros(n_steps + 1)
 T_cabin_hist = np.zeros(n_steps + 1)
 T_coolant_hist = np.zeros(n_steps + 1)
 powertrain_chiller_active_log = np.zeros(n_steps + 1)
+radiator_effectiveness_log = np.zeros(n_steps + 1)
+Q_coolant_radiator_log = np.zeros(n_steps + 1)
+
 v_vehicle_profile_hist = np.zeros(n_steps + 1)
 Q_gen_motor_profile_hist = np.zeros(n_steps + 1)
 Q_gen_inv_profile_hist = np.zeros(n_steps + 1)
 Q_gen_batt_profile_hist = np.zeros(n_steps + 1)
 P_comp_elec_profile_hist = np.zeros(n_steps + 1)
 Q_cabin_cool_actual_hist = np.zeros(n_steps + 1)
+
 
 # Set initial values
 T_motor_hist[0] = sp.T_motor_init
@@ -40,10 +44,10 @@ T_batt_hist[0] = sp.T_batt_init
 T_cabin_hist[0] = sp.T_cabin_init
 T_coolant_hist[0] = sp.T_coolant_init
 v_vehicle_profile_hist[0] = sp.v_start
+radiator_effectiveness_log[0] = 1.0
 
-# --- Initialize Cabin Cooling Power based on initial temperature ---
 initial_cabin_temp = T_cabin_hist[0]
-Q_cabin_cool_initial = sp.cabin_cooling_power_levels[-1] # Default to highest power if above all lower thresholds
+Q_cabin_cool_initial = sp.cabin_cooling_power_levels[-1]
 
 for j in range(len(sp.cabin_cooling_temp_thresholds)):
     if initial_cabin_temp <= sp.cabin_cooling_temp_thresholds[j]:
@@ -51,26 +55,26 @@ for j in range(len(sp.cabin_cooling_temp_thresholds)):
         break
 Q_cabin_cool_actual_hist[0] = max(0, Q_cabin_cool_initial)
 
-
-# --- 3. Simulation Loop ---
 powertrain_chiller_on = False
 
 print("Starting simulation loop...")
 for i in range(n_steps):
     current_time_sec = time_sim[i]
     current_cabin_temp = T_cabin_hist[i]
+    current_T_motor = T_motor_hist[i]
+    current_T_inv = T_inv_hist[i]
+    current_T_batt = T_batt_hist[i]
+    current_T_coolant = T_coolant_hist[i]
 
-    # 3.1. Calculate current vehicle speed
     if current_time_sec <= sp.ramp_up_time_sec:
-        speed_increase = (sp.v_end - sp.v_start) * (current_time_sec / sp.ramp_up_time_sec)
+        speed_increase = (sp.v_end - sp.v_start) * (current_time_sec / sp.ramp_up_time_sec) if sp.ramp_up_time_sec > 0 else 0
         v_vehicle_current = sp.v_start + speed_increase
     else:
         v_vehicle_current = sp.v_end
-    v_vehicle_current = max(min(sp.v_start, sp.v_end), min(max(sp.v_start, sp.v_end), v_vehicle_current)) # Ensure it's within start/end bounds during ramp
-    if current_time_sec > sp.ramp_up_time_sec : v_vehicle_current = sp.v_end # clamp to v_end after ramp
+    v_vehicle_current = max(min(sp.v_start, sp.v_end), min(max(sp.v_start, sp.v_end), v_vehicle_current))
+    if current_time_sec > sp.ramp_up_time_sec : v_vehicle_current = sp.v_end
     v_vehicle_profile_hist[i] = v_vehicle_current
 
-    # 3.2. Calculate instantaneous PROPULSION power and heat generation
     P_wheel = hv.P_wheel_func(v_vehicle_current, sp.m_vehicle, sp.T_ambient)
     P_motor_in = hv.P_motor_func(P_wheel, sp.eta_motor)
     P_inv_in = P_motor_in / sp.eta_inv if sp.eta_inv > 0 else 0
@@ -80,102 +84,107 @@ for i in range(n_steps):
     Q_gen_motor_profile_hist[i] = Q_gen_motor
     Q_gen_inv_profile_hist[i] = Q_gen_inv
 
-    # 3.3. Calculate Cabin Heat Loads
     Q_cabin_internal = ht.heat_universal_func(sp.N_passengers)
     Q_cabin_conduction_body = ht.heat_body_func(sp.T_ambient, current_cabin_temp, v_vehicle_current, sp.v_air_in_mps, sp.A_body, sp.R_body)
     Q_cabin_conduction_glass = ht.heat_glass_func(sp.T_ambient, current_cabin_temp, sp.I_solar_summer, v_vehicle_current, sp.v_air_in_mps, sp.A_glass, sp.R_glass, sp.SHGC, sp.A_glass_sun)
     Q_cabin_ventilation = ht.heat_vent_summer_func(sp.N_passengers, sp.T_ambient, current_cabin_temp, sp.W_out_summer, sp.W_in_target, sp.fresh_air_fraction)
     Q_cabin_load_total = Q_cabin_internal + Q_cabin_conduction_body + Q_cabin_conduction_glass + Q_cabin_ventilation
 
-    # 3.4. Cabin Cooling Control (Multi-level based on temperature thresholds)
-    Q_cabin_cool_actual = sp.cabin_cooling_power_levels[-1] # Default to highest power
-
+    Q_cabin_cool_actual = sp.cabin_cooling_power_levels[-1]
     for j in range(len(sp.cabin_cooling_temp_thresholds)):
         if current_cabin_temp <= sp.cabin_cooling_temp_thresholds[j]:
             Q_cabin_cool_actual = sp.cabin_cooling_power_levels[j]
             break
-
-    # Ensure non-negative cooling power
     Q_cabin_cool_actual = max(0, Q_cabin_cool_actual)
     Q_out_cabin = Q_cabin_cool_actual
     Q_cabin_cool_actual_hist[i] = Q_out_cabin
 
-    # 3.5. Heat Transfer between Components and Coolant
-    Q_motor_to_coolant = sp.UA_motor_coolant * (T_motor_hist[i] - T_coolant_hist[i])
-    Q_inv_to_coolant = sp.UA_inv_coolant * (T_inv_hist[i] - T_coolant_hist[i])
-    Q_batt_to_coolant = sp.UA_batt_coolant * (T_batt_hist[i] - T_coolant_hist[i])
+    Q_motor_to_coolant = sp.UA_motor_coolant * (current_T_motor - current_T_coolant)
+    Q_inv_to_coolant = sp.UA_inv_coolant * (current_T_inv - current_T_coolant)
+    Q_batt_to_coolant = sp.UA_batt_coolant * (current_T_batt - current_T_coolant)
     Q_coolant_absorb = Q_motor_to_coolant + Q_inv_to_coolant + Q_batt_to_coolant
 
-    # 3.6. Coolant Cooling Control (Radiator and Chiller)
-    Q_radiator_potential = sp.UA_coolant_radiator * (T_coolant_hist[i] - sp.T_ambient)
+    current_radiator_effectiveness = 1.0
+    all_comps_below_stop_cool = (current_T_motor < sp.T_motor_stop_cool) and \
+                                (current_T_inv < sp.T_inv_stop_cool) and \
+                                (current_T_batt < sp.T_batt_stop_cool)
+    all_comps_at_or_below_target = (current_T_motor <= sp.T_motor_target) and \
+                                   (current_T_inv <= sp.T_inv_target) and \
+                                   (current_T_batt <= sp.T_batt_target_low)
+    if all_comps_below_stop_cool:
+        current_radiator_effectiveness = sp.radiator_effectiveness_below_stop_cool
+    elif all_comps_at_or_below_target:
+        current_radiator_effectiveness = sp.radiator_effectiveness_at_target
+    radiator_effectiveness_log[i] = current_radiator_effectiveness
+    UA_coolant_radiator_effective = sp.UA_coolant_radiator_max * current_radiator_effectiveness
+    Q_radiator_potential = UA_coolant_radiator_effective * (current_T_coolant - sp.T_ambient)
     Q_coolant_radiator = max(0, Q_radiator_potential)
+    Q_coolant_radiator_log[i] = Q_coolant_radiator
 
-    start_cooling_powertrain = (T_motor_hist[i] > sp.T_motor_target) or \
-                               (T_inv_hist[i] > sp.T_inv_target) or \
-                               (T_batt_hist[i] > sp.T_batt_target_high)
-    stop_cooling_powertrain = (T_motor_hist[i] < sp.T_motor_stop_cool) and \
-                              (T_inv_hist[i] < sp.T_inv_stop_cool) and \
-                              (T_batt_hist[i] < sp.T_batt_stop_cool) # Using T_batt_stop_cool from sp
+    start_cooling_powertrain = (current_T_motor > sp.T_motor_target) or \
+                               (current_T_inv > sp.T_inv_target) or \
+                               (current_T_batt > sp.T_batt_target_high)
+    stop_cooling_powertrain = (current_T_motor < sp.T_motor_stop_cool) and \
+                              (current_T_inv < sp.T_inv_stop_cool) and \
+                              (current_T_batt < sp.T_batt_stop_cool)
     if start_cooling_powertrain:
         powertrain_chiller_on = True
     elif stop_cooling_powertrain:
         powertrain_chiller_on = False
 
-    Q_chiller_potential = sp.UA_coolant_chiller * (T_coolant_hist[i] - sp.T_evap_sat_for_UA_calc) if T_coolant_hist[i] > sp.T_evap_sat_for_UA_calc else 0
+    Q_chiller_potential = sp.UA_coolant_chiller * (current_T_coolant - sp.T_evap_sat_for_UA_calc) if current_T_coolant > sp.T_evap_sat_for_UA_calc else 0
     Q_coolant_chiller_actual = min(Q_chiller_potential, sp.max_chiller_cool_power) if powertrain_chiller_on else 0
     powertrain_chiller_active_log[i] = 1 if powertrain_chiller_on and Q_coolant_chiller_actual > 0 else 0
 
     Q_coolant_reject = Q_coolant_chiller_actual + Q_coolant_radiator
 
-    # 3.7. Calculate AC Compressor Power
     P_comp_elec = 0.0
     Q_evap_total_needed = Q_out_cabin + Q_coolant_chiller_actual
-
     if Q_evap_total_needed > 0:
         if COP > 0 and COP != float('inf') and sp.eta_comp_drive > 0:
             P_comp_mech = Q_evap_total_needed / COP
             P_comp_elec = P_comp_mech / sp.eta_comp_drive
-        else: # Fallback if COP is invalid
-            P_comp_elec = Q_evap_total_needed / 2.0 if sp.eta_comp_drive <=0 else Q_evap_total_needed / (2.0 * sp.eta_comp_drive) # Assuming a default COP of 2.0
-            print(f"Warning: Using fallback for P_comp_elec due to COP={COP} or eta_comp_drive={sp.eta_comp_drive}")
+        else:
+            P_comp_elec = Q_evap_total_needed / 2.0 if sp.eta_comp_drive <=0 else Q_evap_total_needed / (2.0 * sp.eta_comp_drive)
     P_comp_elec_profile_hist[i] = P_comp_elec
 
-    # 3.8. Update Battery Load & Heat Generation
     P_elec_total_batt_out = P_inv_in + P_comp_elec
     Q_gen_batt = hv.Q_batt_func(P_elec_total_batt_out, sp.u_batt, sp.R_int_batt)
     Q_gen_batt_profile_hist[i] = Q_gen_batt
 
-    # 3.9. Calculate Temperature Derivatives
     dT_motor_dt = (Q_gen_motor - Q_motor_to_coolant) / sp.mc_motor if sp.mc_motor > 0 else 0
     dT_inv_dt = (Q_gen_inv - Q_inv_to_coolant) / sp.mc_inverter if sp.mc_inverter > 0 else 0
     dT_batt_dt = (Q_gen_batt - Q_batt_to_coolant) / sp.mc_battery if sp.mc_battery > 0 else 0
     dT_cabin_dt = (Q_cabin_load_total - Q_out_cabin) / sp.mc_cabin if sp.mc_cabin > 0 else 0
     dT_coolant_dt = (Q_coolant_absorb - Q_coolant_reject) / sp.mc_coolant if sp.mc_coolant > 0 else 0
 
-    # 3.10. Update Temperatures
-    T_motor_hist[i+1] = T_motor_hist[i] + dT_motor_dt * sp.dt
-    T_inv_hist[i+1] = T_inv_hist[i] + dT_inv_dt * sp.dt
-    T_batt_hist[i+1] = T_batt_hist[i] + dT_batt_dt * sp.dt
-    T_cabin_hist[i+1] = T_cabin_hist[i] + dT_cabin_dt * sp.dt
-    T_coolant_hist[i+1] = T_coolant_hist[i] + dT_coolant_dt * sp.dt
+    T_motor_hist[i+1] = current_T_motor + dT_motor_dt * sp.dt
+    T_inv_hist[i+1] = current_T_inv + dT_inv_dt * sp.dt
+    T_batt_hist[i+1] = current_T_batt + dT_batt_dt * sp.dt
+    T_cabin_hist[i+1] = current_cabin_temp + dT_cabin_dt * sp.dt
+    T_coolant_hist[i+1] = current_T_coolant + dT_coolant_dt * sp.dt
 
 print("Simulation loop finished.")
 
-# --- 4. Post-processing for Plots ---
 current_time_sec_last = time_sim[n_steps]
 if current_time_sec_last <= sp.ramp_up_time_sec:
-    speed_increase_last = (sp.v_end - sp.v_start) * (current_time_sec_last / sp.ramp_up_time_sec)
+    speed_increase_last = (sp.v_end - sp.v_start) * (current_time_sec_last / sp.ramp_up_time_sec) if sp.ramp_up_time_sec > 0 else 0
     v_vehicle_profile_hist[n_steps] = max(min(sp.v_start,sp.v_end), min(max(sp.v_start,sp.v_end), sp.v_start + speed_increase_last))
 else:
     v_vehicle_profile_hist[n_steps] = sp.v_end
 
 if n_steps > 0:
     powertrain_chiller_active_log[n_steps] = powertrain_chiller_active_log[n_steps-1]
+    radiator_effectiveness_log[n_steps] = radiator_effectiveness_log[n_steps-1]
+    Q_coolant_radiator_log[n_steps] = Q_coolant_radiator_log[n_steps-1]
     Q_gen_motor_profile_hist[n_steps] = Q_gen_motor_profile_hist[n_steps-1]
     Q_gen_inv_profile_hist[n_steps] = Q_gen_inv_profile_hist[n_steps-1]
     Q_gen_batt_profile_hist[n_steps] = Q_gen_batt_profile_hist[n_steps-1]
     P_comp_elec_profile_hist[n_steps] = P_comp_elec_profile_hist[n_steps-1]
     Q_cabin_cool_actual_hist[n_steps] = Q_cabin_cool_actual_hist[n_steps-1]
+elif n_steps == 0:
+    radiator_effectiveness_log[n_steps] = 1.0
+    pass
 
 P_inv_in_profile_hist = np.zeros(n_steps + 1)
 for idx in range(n_steps + 1):
@@ -184,8 +193,6 @@ for idx in range(n_steps + 1):
     P_inv_in_profile_hist[idx] = P_motor_in_i / sp.eta_inv if sp.eta_inv > 0 else 0
 P_elec_total_profile_hist = P_inv_in_profile_hist + P_comp_elec_profile_hist
 
-
-# --- 5. Plotting Results ---
 temperatures_data = {
     'motor': T_motor_hist, 'inv': T_inv_hist, 'batt': T_batt_hist,
     'cabin': T_cabin_hist, 'coolant': T_coolant_hist
@@ -198,7 +205,11 @@ battery_power_data = {
     'comp_elec': P_comp_elec_profile_hist,
     'total_elec': P_elec_total_profile_hist
 }
-
+cooling_system_logs = {
+    'chiller_active': powertrain_chiller_active_log,
+    'radiator_effectiveness': radiator_effectiveness_log,
+    'Q_radiator': Q_coolant_radiator_log
+}
 sim_params_dict = {
     'T_ambient': sp.T_ambient,
     'T_motor_target': sp.T_motor_target,
@@ -214,21 +225,43 @@ sim_params_dict = {
     'ramp_up_time_sec': sp.ramp_up_time_sec,
     'cabin_cooling_temp_thresholds': sp.cabin_cooling_temp_thresholds,
     'cabin_cooling_power_levels': sp.cabin_cooling_power_levels,
-    # --- 从 sp 模块传递所有绘图参数 ---
     'figure_width_inches': sp.figure_width_inches,
     'figure_height_inches': sp.figure_height_inches,
     'figure_dpi': sp.figure_dpi,
     'legend_font_size': sp.legend_font_size,
-    'axis_label_font_size': sp.axis_label_font_size,   # 新增
-    'tick_label_font_size': sp.tick_label_font_size,  # 新增
-    'title_font_size': sp.title_font_size           # 新增
+    'axis_label_font_size': sp.axis_label_font_size,
+    'tick_label_font_size': sp.tick_label_font_size,
+    'title_font_size': sp.title_font_size,
+    'UA_coolant_radiator_max': sp.UA_coolant_radiator_max,
+    'radiator_effectiveness_at_target': sp.radiator_effectiveness_at_target,
+    'radiator_effectiveness_below_stop_cool': sp.radiator_effectiveness_below_stop_cool
 }
 
-plotting.plot_results(
-    time_sim, temperatures_data, powertrain_chiller_active_log,
-    P_comp_elec_profile_hist, Q_cabin_cool_actual_hist,
-    v_vehicle_profile_hist, heat_gen_data, battery_power_data,
-    sim_params_dict, COP
+# --- 5. Plotting Results and Retrieving Extrema ---
+all_temperature_extrema = plotting.plot_results( # 修改：接收返回值
+    time_data=time_sim,
+    temperatures=temperatures_data,
+    ac_power_log=P_comp_elec_profile_hist,
+    cabin_cool_power_log=Q_cabin_cool_actual_hist,
+    speed_profile=v_vehicle_profile_hist,
+    heat_gen_profiles=heat_gen_data,
+    battery_power_profiles=battery_power_data,
+    sim_params=sim_params_dict,
+    cop_value=COP,
+    cooling_system_logs=cooling_system_logs
 )
+
+# --- 6. Print Extrema Coordinates ---
+print("\n--- Local Temperature Extrema ---")
+for component_name, extrema in all_temperature_extrema.items():
+    if extrema['minima']:
+        print(f"\n{component_name} - 局部最低点:")
+        for time_min, temp_c in extrema['minima']:
+            print(f"  时间: {time_min:.2f} 分钟, 温度: {temp_c:.2f} °C")
+    if extrema['maxima']:
+        print(f"\n{component_name} - 局部最高点:")
+        for time_min, temp_c in extrema['maxima']:
+            print(f"  时间: {time_min:.2f} 分钟, 温度: {temp_c:.2f} °C")
+print("\n---------------------------------")
 
 print("Main script finished.")
