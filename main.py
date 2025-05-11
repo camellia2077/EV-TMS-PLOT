@@ -6,7 +6,7 @@ import numpy as np
 import heat_vehicle as hv
 import heat_cabin as ht
 import refrigeration_cycle as rc
-import simulation_parameters as sp # sp now loads all plotting font sizes
+import simulation_parameters as sp
 import plotting
 # --- 0. 打印输入的制冷循环参数 ---
 print("\n--- 初始制冷循环输入参数 ---")
@@ -36,6 +36,8 @@ T_coolant_hist = np.zeros(n_steps + 1)
 powertrain_chiller_active_log = np.zeros(n_steps + 1)
 radiator_effectiveness_log = np.zeros(n_steps + 1)
 Q_coolant_radiator_log = np.zeros(n_steps + 1)
+Q_coolant_chiller_actual_hist = np.zeros(n_steps + 1) # 新增：记录chiller实际制冷量
+Q_cabin_load_total_hist = np.zeros(n_steps + 1)     # 新增：记录座舱总热负荷
 
 v_vehicle_profile_hist = np.zeros(n_steps + 1)
 Q_gen_motor_profile_hist = np.zeros(n_steps + 1)
@@ -62,6 +64,13 @@ for j in range(len(sp.cabin_cooling_temp_thresholds)):
         Q_cabin_cool_initial = sp.cabin_cooling_power_levels[j]
         break
 Q_cabin_cool_actual_hist[0] = max(0, Q_cabin_cool_initial)
+# 初始座舱热负荷 (假设在初始时刻计算一次，主要用于填充第0个点)
+Q_cabin_internal_init = ht.heat_universal_func(sp.N_passengers)
+Q_cabin_conduction_body_init = ht.heat_body_func(sp.T_ambient, initial_cabin_temp, v_vehicle_profile_hist[0], sp.v_air_in_mps, sp.A_body, sp.R_body)
+Q_cabin_conduction_glass_init = ht.heat_glass_func(sp.T_ambient, initial_cabin_temp, sp.I_solar_summer, v_vehicle_profile_hist[0], sp.v_air_in_mps, sp.A_glass, sp.R_glass, sp.SHGC, sp.A_glass_sun)
+Q_cabin_ventilation_init = ht.heat_vent_summer_func(sp.N_passengers, sp.T_ambient, initial_cabin_temp, sp.W_out_summer, sp.W_in_target, sp.fresh_air_fraction)
+Q_cabin_load_total_hist[0] = Q_cabin_internal_init + Q_cabin_conduction_body_init + Q_cabin_conduction_glass_init + Q_cabin_ventilation_init
+
 
 powertrain_chiller_on = False
 
@@ -97,6 +106,7 @@ for i in range(n_steps):
     Q_cabin_conduction_glass = ht.heat_glass_func(sp.T_ambient, current_cabin_temp, sp.I_solar_summer, v_vehicle_current, sp.v_air_in_mps, sp.A_glass, sp.R_glass, sp.SHGC, sp.A_glass_sun)
     Q_cabin_ventilation = ht.heat_vent_summer_func(sp.N_passengers, sp.T_ambient, current_cabin_temp, sp.W_out_summer, sp.W_in_target, sp.fresh_air_fraction)
     Q_cabin_load_total = Q_cabin_internal + Q_cabin_conduction_body + Q_cabin_conduction_glass + Q_cabin_ventilation
+    Q_cabin_load_total_hist[i] = Q_cabin_load_total # 记录座舱总热负荷
 
     Q_cabin_cool_actual = sp.cabin_cooling_power_levels[-1]
     for j in range(len(sp.cabin_cooling_temp_thresholds)):
@@ -142,6 +152,7 @@ for i in range(n_steps):
 
     Q_chiller_potential = sp.UA_coolant_chiller * (current_T_coolant - sp.T_evap_sat_for_UA_calc) if current_T_coolant > sp.T_evap_sat_for_UA_calc else 0
     Q_coolant_chiller_actual = min(Q_chiller_potential, sp.max_chiller_cool_power) if powertrain_chiller_on else 0
+    Q_coolant_chiller_actual_hist[i] = Q_coolant_chiller_actual # 记录chiller实际制冷量
     powertrain_chiller_active_log[i] = 1 if powertrain_chiller_on and Q_coolant_chiller_actual > 0 else 0
 
     Q_coolant_reject = Q_coolant_chiller_actual + Q_coolant_radiator
@@ -185,14 +196,45 @@ if n_steps > 0:
     powertrain_chiller_active_log[n_steps] = powertrain_chiller_active_log[n_steps-1]
     radiator_effectiveness_log[n_steps] = radiator_effectiveness_log[n_steps-1]
     Q_coolant_radiator_log[n_steps] = Q_coolant_radiator_log[n_steps-1]
+    Q_coolant_chiller_actual_hist[n_steps] = Q_coolant_chiller_actual_hist[n_steps-1] # 填充最后一个点
+    Q_cabin_load_total_hist[n_steps] = Q_cabin_load_total_hist[n_steps-1]         # 填充最后一个点
     Q_gen_motor_profile_hist[n_steps] = Q_gen_motor_profile_hist[n_steps-1]
     Q_gen_inv_profile_hist[n_steps] = Q_gen_inv_profile_hist[n_steps-1]
     Q_gen_batt_profile_hist[n_steps] = Q_gen_batt_profile_hist[n_steps-1]
     P_comp_elec_profile_hist[n_steps] = P_comp_elec_profile_hist[n_steps-1]
     Q_cabin_cool_actual_hist[n_steps] = Q_cabin_cool_actual_hist[n_steps-1]
 elif n_steps == 0:
-    radiator_effectiveness_log[n_steps] = 1.0
+    # 如果只有一个时间点，需要确保这些值被合理初始化
+    P_wheel_init_calc = hv.P_wheel_func(v_vehicle_profile_hist[n_steps], sp.m_vehicle, sp.T_ambient)
+    P_motor_in_init_calc = hv.P_motor_func(P_wheel_init_calc, sp.eta_motor)
+    Q_gen_motor_profile_hist[n_steps] = hv.Q_mot_func(P_motor_in_init_calc, sp.eta_motor)
+    Q_gen_inv_profile_hist[n_steps] = hv.Q_inv_func(P_motor_in_init_calc, sp.eta_inv)
+
+    # 对于P_comp_elec 和 Q_gen_batt 的初始点，需要基于初始的空调需求和总电力需求
+    # 初始座舱制冷功率 Q_cabin_cool_actual_hist[0] 已经计算
+    # 初始动力总成chiller制冷 Q_coolant_chiller_actual_hist[0] 默认为0，除非有特殊逻辑
+    Q_evap_total_needed_init = Q_cabin_cool_actual_hist[0] + Q_coolant_chiller_actual_hist[0]
+    if Q_evap_total_needed_init > 0:
+        if COP > 0 and COP != float('inf') and sp.eta_comp_drive > 0:
+            P_comp_mech_init = Q_evap_total_needed_init / COP
+            P_comp_elec_profile_hist[n_steps] = P_comp_mech_init / sp.eta_comp_drive
+        else:
+            P_comp_elec_profile_hist[n_steps] = Q_evap_total_needed_init / 2.0 if sp.eta_comp_drive <=0 else Q_evap_total_needed_init / (2.0 * sp.eta_comp_drive)
+    else:
+        P_comp_elec_profile_hist[n_steps] = 0.0
+
+    P_inv_in_init_calc = P_motor_in_init_calc / sp.eta_inv if sp.eta_inv > 0 else 0
+    P_elec_total_batt_out_init = P_inv_in_init_calc + P_comp_elec_profile_hist[n_steps]
+    Q_gen_batt_profile_hist[n_steps] = hv.Q_batt_func(P_elec_total_batt_out_init, sp.u_batt, sp.R_int_batt)
+
+    radiator_effectiveness_log[n_steps] = 1.0 # 假设初始散热器全效
+    # Q_coolant_radiator_log[0] 依赖于 T_coolant_hist[0] 和 T_ambient
+    UA_coolant_radiator_effective_init = sp.UA_coolant_radiator_max * radiator_effectiveness_log[n_steps]
+    Q_radiator_potential_init = UA_coolant_radiator_effective_init * (T_coolant_hist[0] - sp.T_ambient)
+    Q_coolant_radiator_log[n_steps] = max(0, Q_radiator_potential_init)
+    # Q_cabin_load_total_hist[0] 已在前面初始化
     pass
+
 
 P_inv_in_profile_hist = np.zeros(n_steps + 1)
 for idx in range(n_steps + 1):
@@ -206,7 +248,10 @@ temperatures_data = {
     'cabin': T_cabin_hist, 'coolant': T_coolant_hist
 }
 heat_gen_data = {
-    'motor': Q_gen_motor_profile_hist, 'inv': Q_gen_inv_profile_hist, 'batt': Q_gen_batt_profile_hist
+    'motor': Q_gen_motor_profile_hist,
+    'inv': Q_gen_inv_profile_hist,
+    'batt': Q_gen_batt_profile_hist,
+    'cabin_load': Q_cabin_load_total_hist # 新增：传递座舱总热负荷
 }
 battery_power_data = {
     'inv_in': P_inv_in_profile_hist,
@@ -216,7 +261,9 @@ battery_power_data = {
 cooling_system_logs = {
     'chiller_active': powertrain_chiller_active_log,
     'radiator_effectiveness': radiator_effectiveness_log,
-    'Q_radiator': Q_coolant_radiator_log
+    'Q_radiator': Q_coolant_radiator_log,
+    'Q_chiller_powertrain': Q_coolant_chiller_actual_hist, # 新增：传递chiller对动力总成的制冷量
+    'Q_cabin_evap': Q_cabin_cool_actual_hist         # 新增：传递座舱蒸发器制冷量
 }
 sim_params_dict = {
     'T_ambient': sp.T_ambient,
@@ -250,13 +297,13 @@ all_temperature_extrema = plotting.plot_results( # 修改：接收返回值
     time_data=time_sim,
     temperatures=temperatures_data,
     ac_power_log=P_comp_elec_profile_hist,
-    cabin_cool_power_log=Q_cabin_cool_actual_hist,
+    cabin_cool_power_log=Q_cabin_cool_actual_hist, # Q_cabin_cool_actual_hist 就是座舱蒸发器的制冷功率
     speed_profile=v_vehicle_profile_hist,
-    heat_gen_profiles=heat_gen_data,
+    heat_gen_profiles=heat_gen_data, # heat_gen_data 现在包含座舱热负荷
     battery_power_profiles=battery_power_data,
     sim_params=sim_params_dict,
     cop_value=COP,
-    cooling_system_logs=cooling_system_logs
+    cooling_system_logs=cooling_system_logs # cooling_system_logs 现在包含更多散热数据
 )
 
 # --- 6. 部件温度极值点 ---
