@@ -62,6 +62,8 @@ def main():
     # --- 5. Print Analysis from Analyzer ---
     analyzer.print_temperature_extrema(all_temperature_extrema)
     analyzer.analyze_chiller_transitions()
+    analyzer.print_average_values()
+    
     end_start_time = time.time()
     time_duration = end_start_time - start_time
     print(f"Total execution time:{time_duration:.2f}s")
