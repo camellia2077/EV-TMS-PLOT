@@ -21,13 +21,14 @@ def ensure_profile_length(profile, target_length):
 def plot_local_extrema(ax, time_minutes, data, color, label_prefix, text_fontsize=8): # 新增 text_fontsize 参数
     """
     在给定的轴上用文本标注数据的局部最小值和最大值点，并返回这些点的坐标。
+    如果 label_prefix 是 '座舱', 则不在此图上标记极值点或显示文本。
 
     参数:
     ax: matplotlib.axes.Axes 对象，用于绘图。
     time_minutes: 时间数据 (x轴)。
     data: 温度数据 (y轴)。
     color: 文本标注的颜色。
-    label_prefix: 用于识别数据系列的标签。
+    label_prefix: 用于识别数据系列的标签。如果为 '座舱', 则不进行标注。
     text_fontsize: 局部极值点文本标注的字体大小。
 
     返回:
@@ -39,20 +40,27 @@ def plot_local_extrema(ax, time_minutes, data, color, label_prefix, text_fontsiz
 
     extrema_coords = {'minima': [], 'maxima': []}
 
+    # 检查是否应该绘制文本和标记点 (当 label_prefix 不是 '座舱' 时)
+    should_plot_annotations = label_prefix != '座舱'
+
     if len(local_min_indices) > 0:
         for i in local_min_indices:
             # 确保索引在数据范围内
             if 0 <= i < len(time_minutes) and 0 <= i < len(data):
-                ax.text(time_minutes[i], data[i], f'{data[i]:.1f}°C\n({time_minutes[i]:.1f}min)',
-                        fontsize=text_fontsize, color=color, ha='center', va='top') # 使用 text_fontsize
-                extrema_coords['minima'].append((time_minutes[i], data[i]))
+                extrema_coords['minima'].append((time_minutes[i], data[i])) # 始终记录极值点坐标
+                # 只有当 label_prefix 不是 '座舱' 时才绘制文本标注
+                if should_plot_annotations:
+                    ax.text(time_minutes[i], data[i], f'{data[i]:.1f}°C\n({time_minutes[i]:.1f}min)',
+                            fontsize=text_fontsize, color=color, ha='center', va='top') # 使用 text_fontsize
 
     if len(local_max_indices) > 0:
         for i in local_max_indices:
             if 0 <= i < len(time_minutes) and 0 <= i < len(data):
-                ax.text(time_minutes[i], data[i], f'{data[i]:.1f}°C\n({time_minutes[i]:.1f}min)',
-                        fontsize=text_fontsize, color=color, ha='center', va='bottom') # 使用 text_fontsize
-                extrema_coords['maxima'].append((time_minutes[i], data[i]))
+                extrema_coords['maxima'].append((time_minutes[i], data[i])) # 始终记录极值点坐标
+                # 只有当 label_prefix 不是 '座舱' 时才绘制文本标注
+                if should_plot_annotations:
+                    ax.text(time_minutes[i], data[i], f'{data[i]:.1f}°C\n({time_minutes[i]:.1f}min)',
+                            fontsize=text_fontsize, color=color, ha='center', va='bottom') # 使用 text_fontsize
     return extrema_coords
 
 
@@ -114,13 +122,17 @@ def plot_results(time_data, temperatures, ac_power_log, cabin_cool_power_log,
     ax_temp.plot(time_minutes, T_motor, label='电机温度 (°C)', color='blue')
     ax_temp.plot(time_minutes, T_inv, label='逆变器温度 (°C)', color='orange')
     ax_temp.plot(time_minutes, T_batt, label='电池温度 (°C)', color='green')
-    ax_temp.plot(time_minutes, T_cabin, label='座舱温度 (°C)', color='red')
+    ax_temp.plot(time_minutes, T_cabin, label='座舱温度 (°C)', color='red') # 座舱温度曲线仍然绘制
     ax_temp.plot(time_minutes, T_coolant, label='冷却液温度 (°C)', color='purple', alpha=0.6)
 
+    # 调用 plot_local_extrema 来查找并标注（或仅查找）局部极值点
+    # 对于电机、逆变器、电池、冷却液的温度，会标记极值点
     all_extrema_data['电机'] = plot_local_extrema(ax_temp, time_minutes, T_motor, 'blue', '电机', text_fontsize=extrema_text_fontsize)
     all_extrema_data['逆变器'] = plot_local_extrema(ax_temp, time_minutes, T_inv, 'orange', '逆变器', text_fontsize=extrema_text_fontsize)
     all_extrema_data['电池'] = plot_local_extrema(ax_temp, time_minutes, T_batt, 'green', '电池', text_fontsize=extrema_text_fontsize)
     all_extrema_data['冷却液'] = plot_local_extrema(ax_temp, time_minutes, T_coolant, 'purple', '冷却液', text_fontsize=extrema_text_fontsize)
+    # 对于座舱温度，由于 plot_local_extrema 函数内部的逻辑 (label_prefix == '座舱')，
+    # 将不会在图上标记极值点或显示文本，但极值数据仍会被计算并存储。
     all_extrema_data['座舱'] = plot_local_extrema(ax_temp, time_minutes, T_cabin, 'red', '座舱', text_fontsize=extrema_text_fontsize)
 
 
@@ -141,18 +153,18 @@ def plot_results(time_data, temperatures, ac_power_log, cabin_cool_power_log,
                 if idx > 0 and levels[idx-1] == 0:
                     label_text = f'座舱启动P({levels[idx]}W)@{thresholds[idx-1]}-{temp_thresh}°C'
                 elif idx == 0 and levels[idx] > 0 : # First level is cooling
-                     label_text = f'座舱P({levels[idx]}W)至{temp_thresh}°C'
+                    label_text = f'座舱P({levels[idx]}W)至{temp_thresh}°C'
                 elif idx > 0 and levels[idx] > 0 and levels[idx] != levels[idx-1]: # Power step up
                     label_text = f'座舱升档P({levels[idx]}W)@{thresholds[idx-1]}-{temp_thresh}°C'
 
             elif idx == 0 and levels[idx] == 0 and len(thresholds) > 1:
-                 label_text = f'座舱OFF至{temp_thresh}°C'
+                label_text = f'座舱OFF至{temp_thresh}°C'
 
             if label_text and label_text not in plotted_threshold_labels:
-                 ax_temp.axhline(temp_thresh, color='salmon', linestyle=':', alpha=0.4, label=label_text)
-                 plotted_threshold_labels.add(label_text)
+                ax_temp.axhline(temp_thresh, color='salmon', linestyle=':', alpha=0.4, label=label_text)
+                plotted_threshold_labels.add(label_text)
             elif temp_thresh < 99 and not label_text : # Default unlabeled line if conditions not met for specific label
-                 ax_temp.axhline(temp_thresh, color='salmon', linestyle=':', alpha=0.4)
+                ax_temp.axhline(temp_thresh, color='salmon', linestyle=':', alpha=0.4)
 
 
     ax_temp.axhline(sim_params['T_ambient'], color='grey', linestyle=':', alpha=0.7, label=f'环境温度 ({sim_params["T_ambient"]}°C)')
@@ -320,9 +332,9 @@ def plot_results(time_data, temperatures, ac_power_log, cabin_cool_power_log,
         plt.legend(loc='best', fontsize=legend_font_size)
         plt.grid(True)
         if len(v_accel) > 1 :
-             plt.xlim(left=min(v_accel), right=max(v_accel))
+            plt.xlim(left=min(v_accel), right=max(v_accel))
         elif len(v_accel) == 1:
-             plt.xlim(left=v_accel[0]-5, right=v_accel[0]+5)
+            plt.xlim(left=v_accel[0]-5, right=v_accel[0]+5)
 
         plt.tight_layout()
         filename6 = os.path.join(output_dir, "plot_temp_vs_speed_accel.png")
