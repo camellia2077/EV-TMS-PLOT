@@ -3,10 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import os
 import numpy as np
-from scipy.signal import argrelextrema
 
 # 设置 matplotlib 支持中文显示
-mpl.rcParams['font.sans-serif'] = ['SimHei'] # 或者 'Microsoft YaHei', 'WenQuanYi Micro Hei' 等
+mpl.rcParams['font.sans-serif'] = ['SimSun'] # 或者 'Microsoft YaHei', 'WenQuanYi Micro Hei' 等
 mpl.rcParams['axes.unicode_minus'] = False
 
 class SimulationPlotter:
@@ -50,26 +49,35 @@ class SimulationPlotter:
     @staticmethod
     def _plot_local_extrema(ax, time_minutes, data, color, label_prefix, text_fontsize=8):
         """
-        Marks local extrema on the given axes and returns their coordinates.
+        Marks local extrema on the given axes and returns their coordinates using custom logic.
         If label_prefix is '座舱', annotations are not plotted.
+        查找极值
         """
-        local_min_indices = argrelextrema(data, np.less)[0]
-        local_max_indices = argrelextrema(data, np.greater)[0]
         extrema_coords = {'minima': [], 'maxima': []}
         should_plot_annotations = label_prefix != '座舱'
+        n = len(data)
+        if n < 3: # Need at least 3 points to find a local extremum
+            return extrema_coords
 
-        for i in local_min_indices:
-            if 0 <= i < len(time_minutes) and 0 <= i < len(data):
-                extrema_coords['minima'].append((time_minutes[i], data[i]))
-                if should_plot_annotations:
-                    ax.text(time_minutes[i], data[i], f'{data[i]:.1f}°C\n({time_minutes[i]:.1f}min)',
-                            fontsize=text_fontsize, color=color, ha='center', va='top')
-        for i in local_max_indices:
-            if 0 <= i < len(time_minutes) and 0 <= i < len(data):
-                extrema_coords['maxima'].append((time_minutes[i], data[i]))
-                if should_plot_annotations:
-                    ax.text(time_minutes[i], data[i], f'{data[i]:.1f}°C\n({time_minutes[i]:.1f}min)',
-                            fontsize=text_fontsize, color=color, ha='center', va='bottom')
+        for i in range(1, n - 1):
+            # Check for local maximum
+            if data[i] > data[i-1] and data[i] > data[i+1]:
+                # Optional: Add a threshold to avoid detecting minor fluctuations
+                # if abs(data[i] - data[i-1]) > tolerance and abs(data[i] - data[i+1]) > tolerance:
+                if 0 <= i < len(time_minutes): # Check index bounds
+                    extrema_coords['maxima'].append((time_minutes[i], data[i]))
+                    if should_plot_annotations:
+                        ax.text(time_minutes[i], data[i], f'{data[i]:.1f}°C\n({time_minutes[i]:.1f}min)',
+                                fontsize=text_fontsize, color=color, ha='center', va='bottom')
+            # Check for local minimum
+            elif data[i] < data[i-1] and data[i] < data[i+1]:
+                # Optional: Add a threshold
+                # if abs(data[i] - data[i-1]) > tolerance and abs(data[i] - data[i+1]) > tolerance:
+                if 0 <= i < len(time_minutes): # Check index bounds
+                    extrema_coords['minima'].append((time_minutes[i], data[i]))
+                    if should_plot_annotations:
+                        ax.text(time_minutes[i], data[i], f'{data[i]:.1f}°C\n({time_minutes[i]:.1f}min)',
+                                fontsize=text_fontsize, color=color, ha='center', va='top')
         return extrema_coords
 
     def _setup_common_plot_settings(self):
@@ -92,36 +100,40 @@ class SimulationPlotter:
 
         _ensure = SimulationPlotter._ensure_profile_length # Shortcut for static method
 
-        prepared_data['T_motor'] = _ensure(self.temperatures_raw.get('motor', []), n_total_points)
-        prepared_data['T_inv'] = _ensure(self.temperatures_raw.get('inv', []), n_total_points)
-        prepared_data['T_batt'] = _ensure(self.temperatures_raw.get('batt', []), n_total_points)
-        prepared_data['T_cabin'] = _ensure(self.temperatures_raw.get('cabin', []), n_total_points)
-        prepared_data['T_coolant'] = _ensure(self.temperatures_raw.get('coolant', []), n_total_points)
+        prepared_data['T_motor'] = _ensure(self.temperatures_raw.get('motor', np.array([])), n_total_points)
+        prepared_data['T_inv'] = _ensure(self.temperatures_raw.get('inv', np.array([])), n_total_points)
+        prepared_data['T_batt'] = _ensure(self.temperatures_raw.get('batt', np.array([])), n_total_points)
+        prepared_data['T_cabin'] = _ensure(self.temperatures_raw.get('cabin', np.array([])), n_total_points)
+        prepared_data['T_coolant'] = _ensure(self.temperatures_raw.get('coolant', np.array([])), n_total_points)
 
-        prepared_data['chiller_active_log'] = _ensure(self.cooling_system_logs_raw.get('chiller_active', []), n_total_points)
-        prepared_data['radiator_effectiveness_log'] = _ensure(self.cooling_system_logs_raw.get('radiator_effectiveness', []), n_total_points)
-        prepared_data['Q_coolant_radiator_log'] = _ensure(self.cooling_system_logs_raw.get('Q_radiator', []), n_total_points)
-        prepared_data['Q_powertrain_chiller_log'] = _ensure(self.cooling_system_logs_raw.get('Q_chiller_powertrain', []), n_total_points)
-        prepared_data['Q_cabin_evap_log'] = _ensure(self.cooling_system_logs_raw.get('Q_cabin_evap', []), n_total_points)
+        prepared_data['chiller_active_log'] = _ensure(self.cooling_system_logs_raw.get('chiller_active', np.array([])), n_total_points)
+        prepared_data['radiator_effectiveness_log'] = _ensure(self.cooling_system_logs_raw.get('radiator_effectiveness', np.array([])), n_total_points)
+        prepared_data['Q_coolant_radiator_log'] = _ensure(self.cooling_system_logs_raw.get('Q_radiator', np.array([])), n_total_points)
+        prepared_data['Q_powertrain_chiller_log'] = _ensure(self.cooling_system_logs_raw.get('Q_chiller_powertrain', np.array([])), n_total_points)
+        prepared_data['Q_cabin_evap_log'] = _ensure(self.cooling_system_logs_raw.get('Q_cabin_evap', np.array([])), n_total_points)
 
-        prepared_data['P_comp_elec_profile'] = _ensure(self.ac_power_log_raw, n_total_points)
-        prepared_data['v_vehicle_profile'] = _ensure(self.speed_profile_raw, n_total_points)
+        # Ensure ac_power_log_raw is an array before passing to _ensure
+        ac_power_log_data = self.ac_power_log_raw if isinstance(self.ac_power_log_raw, np.ndarray) else np.array(self.ac_power_log_raw)
+        prepared_data['P_comp_elec_profile'] = _ensure(ac_power_log_data, n_total_points)
 
-        prepared_data['Q_gen_motor_profile'] = _ensure(self.heat_gen_profiles_raw.get('motor', []), n_total_points)
-        prepared_data['Q_gen_inv_profile'] = _ensure(self.heat_gen_profiles_raw.get('inv', []), n_total_points)
-        prepared_data['Q_gen_batt_profile'] = _ensure(self.heat_gen_profiles_raw.get('batt', []), n_total_points)
-        prepared_data['Q_cabin_load_profile'] = _ensure(self.heat_gen_profiles_raw.get('cabin_load', []), n_total_points)
+        speed_profile_data = self.speed_profile_raw if isinstance(self.speed_profile_raw, np.ndarray) else np.array(self.speed_profile_raw)
+        prepared_data['v_vehicle_profile'] = _ensure(speed_profile_data, n_total_points)
 
-        prepared_data['P_inv_in_profile'] = _ensure(self.battery_power_profiles_raw.get('inv_in', []), n_total_points)
-        prepared_data['P_elec_total_profile'] = _ensure(self.battery_power_profiles_raw.get('total_elec', []), n_total_points)
-        
+        prepared_data['Q_gen_motor_profile'] = _ensure(self.heat_gen_profiles_raw.get('motor', np.array([])), n_total_points)
+        prepared_data['Q_gen_inv_profile'] = _ensure(self.heat_gen_profiles_raw.get('inv', np.array([])), n_total_points)
+        prepared_data['Q_gen_batt_profile'] = _ensure(self.heat_gen_profiles_raw.get('batt', np.array([])), n_total_points)
+        prepared_data['Q_cabin_load_profile'] = _ensure(self.heat_gen_profiles_raw.get('cabin_load', np.array([])), n_total_points)
+
+        prepared_data['P_inv_in_profile'] = _ensure(self.battery_power_profiles_raw.get('inv_in', np.array([])), n_total_points)
+        prepared_data['P_elec_total_profile'] = _ensure(self.battery_power_profiles_raw.get('total_elec', np.array([])), n_total_points)
+
         return prepared_data
 
     def plot_temperatures(self):
         """Plots component temperatures."""
         fig_temp, ax_temp = plt.subplots(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
-        
+
         ax_temp.plot(self.time_minutes, data['T_motor'], label='电机温度 (°C)', color='blue')
         ax_temp.plot(self.time_minutes, data['T_inv'], label='逆变器温度 (°C)', color='orange')
         ax_temp.plot(self.time_minutes, data['T_batt'], label='电池温度 (°C)', color='green')
@@ -182,7 +194,7 @@ class SimulationPlotter:
         """Plots cooling system operation status and related powers."""
         fig, ax1 = plt.subplots(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
-        
+
         ax1.plot(self.time_minutes, data['chiller_active_log'], label='动力总成Chiller状态 (1=ON)', color='black', drawstyle='steps-post', alpha=0.7)
         ax1.plot(self.time_minutes, data['radiator_effectiveness_log'], label=f'散热器效能因子 (UA/UA_max)', color='brown', drawstyle='steps-post', linestyle='--', alpha=0.7)
         ax1.set_xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
@@ -225,9 +237,9 @@ class SimulationPlotter:
         plt.yticks(fontsize=self.common_settings['tick_label_fs'])
         plt.xlim(left=0, right=self.sim_params['sim_duration']/60)
         v_min_plot = 0
-        v_max_plot = max(self.sim_params['v_start'], self.sim_params['v_end']) + 10 if len(v_vehicle_profile) > 0 else 10
+        v_max_plot = max(self.sim_params.get('v_start', 0), self.sim_params.get('v_end', 0)) + 10 if len(v_vehicle_profile) > 0 else 10
         plt.ylim(v_min_plot, v_max_plot)
-        plt.title(f'车辆速度变化曲线 ({self.sim_params["v_start"]}到{self.sim_params["v_end"]}km/h)', fontsize=self.common_settings['title_fs'])
+        plt.title(f'车辆速度变化曲线 ({self.sim_params.get("v_start", "N/A")}到{self.sim_params.get("v_end","N/A")}km/h)', fontsize=self.common_settings['title_fs'])
         plt.grid(True)
         plt.tight_layout()
         plt.legend(loc='best', fontsize=self.common_settings['legend_font_size'])
@@ -343,7 +355,7 @@ class SimulationPlotter:
             plt.ylabel('温度 (°C)', fontsize=self.common_settings['axis_label_fs'])
             plt.xticks(fontsize=self.common_settings['tick_label_fs'])
             plt.yticks(fontsize=self.common_settings['tick_label_fs'])
-            plt.title(f'加速阶段部件温度随车速变化轨迹 ({self.sim_params["v_start"]}到{self.sim_params["v_end"]} km/h)', fontsize=self.common_settings['title_fs'])
+            plt.title(f'加速阶段部件温度随车速变化轨迹 ({self.sim_params.get("v_start", "N/A")}到{self.sim_params.get("v_end","N/A")} km/h)', fontsize=self.common_settings['title_fs'])
             plt.legend(loc='best', fontsize=self.common_settings['legend_font_size'])
             plt.grid(True)
             if len(v_accel) > 1 :
@@ -363,13 +375,12 @@ class SimulationPlotter:
         """Plots temperatures during constant speed phase."""
         plt.figure(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
-        # time_minutes_full refers to self.time_minutes which is already prepared
         ramp_up_steps = int(self.sim_params['ramp_up_time_sec'] / self.sim_params.get('dt', 1)) if self.sim_params.get('dt', 1) > 0 else 0
         const_speed_start_index = min(ramp_up_steps + 1, len(self.time_minutes))
 
         if const_speed_start_index < len(self.time_minutes):
             time_const_speed_minutes = self.time_minutes[const_speed_start_index:]
-            
+
             if len(time_const_speed_minutes) > 0:
                 _ensure = SimulationPlotter._ensure_profile_length
                 T_motor_const_speed = _ensure(data['T_motor'][const_speed_start_index:], len(time_const_speed_minutes))
@@ -383,17 +394,23 @@ class SimulationPlotter:
                 plt.plot(time_const_speed_minutes, T_batt_const_speed, label='电池温度 (°C)', color='green')
                 plt.plot(time_const_speed_minutes, T_cabin_const_speed, label='座舱温度 (°C)', color='red')
                 plt.plot(time_const_speed_minutes, T_coolant_const_speed, label='冷却液温度 (°C)', color='purple', alpha=0.6)
-                plt.axhline(self.sim_params['T_motor_target'], color='blue', linestyle='--', alpha=0.7, label=f'电机目标 ({self.sim_params["T_motor_target"]}°C)')
-                plt.axhline(self.sim_params['T_inv_target'], color='orange', linestyle='--', alpha=0.7, label=f'逆变器目标 ({self.sim_params["T_inv_target"]}°C)')
-                plt.axhline(self.sim_params['T_batt_target_high'], color='green', linestyle='--', alpha=0.7, label=f'电池制冷启动 ({self.sim_params["T_batt_target_high"]}°C)')
-                plt.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
-                plt.axhline(self.sim_params['T_ambient'], color='grey', linestyle=':', alpha=0.7, label=f'环境温度 ({self.sim_params["T_ambient"]}°C)')
+                ax_temp = plt.gca() # Get current axes
+                ax_temp.axhline(self.sim_params['T_motor_target'], color='blue', linestyle='--', alpha=0.7, label=f'电机目标 ({self.sim_params["T_motor_target"]}°C)')
+                ax_temp.axhline(self.sim_params['T_inv_target'], color='orange', linestyle='--', alpha=0.7, label=f'逆变器目标 ({self.sim_params["T_inv_target"]}°C)')
+                ax_temp.axhline(self.sim_params['T_batt_target_high'], color='green', linestyle='--', alpha=0.7, label=f'电池制冷启动 ({self.sim_params["T_batt_target_high"]}°C)')
+                ax_temp.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
+                ax_temp.axhline(self.sim_params['T_ambient'], color='grey', linestyle=':', alpha=0.7, label=f'环境温度 ({self.sim_params["T_ambient"]}°C)')
                 plt.xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
                 plt.ylabel('温度 (°C)', fontsize=self.common_settings['axis_label_fs'])
                 plt.xticks(fontsize=self.common_settings['tick_label_fs'])
                 plt.yticks(fontsize=self.common_settings['tick_label_fs'])
-                plt.title(f'部件温度变化 (匀速 {self.sim_params["v_end"]} km/h 阶段)', fontsize=self.common_settings['title_fs'])
-                plt.legend(loc='best', fontsize=self.common_settings['legend_font_size'])
+                plt.title(f'部件温度变化 (匀速 {self.sim_params.get("v_end","N/A")} km/h 阶段)', fontsize=self.common_settings['title_fs'])
+                # Manually create legend handles and labels to avoid duplicates if axhlines add to legend
+                handles, labels = ax_temp.get_legend_handles_labels()
+                # Filter out duplicate labels before creating the legend
+                from collections import OrderedDict
+                by_label = OrderedDict(zip(labels, handles))
+                ax_temp.legend(by_label.values(), by_label.keys(), loc='best', fontsize=self.common_settings['legend_font_size'])
                 plt.grid(True)
                 if len(time_const_speed_minutes) > 0:
                     plt.xlim(left=time_const_speed_minutes[0], right=self.time_minutes[-1])
@@ -450,7 +467,7 @@ class SimulationPlotter:
             os.makedirs(self.output_dir)
             print(f"Created directory: {self.output_dir}")
 
-        self.plot_temperatures() # This will populate self.all_extrema_data
+        self.plot_temperatures() 
         self.plot_cooling_system_operation()
         self.plot_vehicle_speed()
         self.plot_powertrain_heat_generation()
@@ -462,4 +479,3 @@ class SimulationPlotter:
 
         print("All plots generation attempt finished.")
         return self.all_extrema_data
-
