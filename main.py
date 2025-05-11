@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # main.py
+import time
 import simulation_parameters as sp # Parameters are loaded when this module is imported
 import refrigeration_cycle as rc
 from simulation_engine import SimulationEngine
@@ -7,6 +8,8 @@ from results_analyzer import ResultsAnalyzer
 import plotting
 
 def main():
+    start_time = time.time()
+    print("\nPProgram started.")
     # --- 0. 打印输入的制冷循环参数 ---
     print("\n--- 初始制冷循环输入参数 ---")
     print(f"压缩机入口过热度 (T_suc_C_in): {sp.T_suc_C_in}°C")
@@ -57,8 +60,10 @@ def main():
     # --- 5. Print Analysis from Analyzer ---
     analyzer.print_temperature_extrema(all_temperature_extrema)
     analyzer.analyze_chiller_transitions()
-
-    print("\nMain script finished successfully.")
+    end_start_time = time.time()
+    time_duration = start_time - end_start_time
+    print(f"Total execution time:{time_duration}")
+    print("\nProgram finished successfully.")
 
 if __name__ == "__main__":
     main()
