@@ -5,7 +5,7 @@ import simulation_parameters as sp # Parameters are loaded when this module is i
 import refrigeration_cycle as rc
 from simulation_engine import SimulationEngine
 from results_analyzer import ResultsAnalyzer
-import plotting
+from plotting import SimulationPlotter # <--- 修改导入
 
 def main():
     start_time = time.time()
@@ -25,7 +25,6 @@ def main():
         sp.T_suc_C_in, sp.T_cond_sat_C_in, sp.T_be_C_in,
         sp.T_evap_sat_C_in, sp.T_dis_C_in, sp.REFRIGERANT_TYPE
     )
-    # cycle_data can be logged or used if needed
 
     # --- 2. Initialize and Run Simulation ---
     print("\n--- Simulation ---")
@@ -36,27 +35,29 @@ def main():
     # --- 3. Post-Process and Analyze Results ---
     print("\n--- Results Processing and Analysis ---")
     analyzer = ResultsAnalyzer(raw_simulation_results, sp)
-    processed_plot_data = analyzer.post_process_data()
+    processed_plot_data = analyzer.post_process_data() # This now returns a dictionary
     print("Results processing finished.")
     mid_time = time.time()
     time_dur_mid = mid_time - start_time
     print(f"Mid time:{time_dur_mid:.4f}s")
-    # --- 4. Plotting Results ---
+
+    # --- 4. Plotting Results using SimulationPlotter class ---
     print("\n--- Plotting ---")
-    # The plot_results function in plotting.py expects data in a specific format.
-    # The processed_plot_data from ResultsAnalyzer should now match this.
-    all_temperature_extrema = plotting.plot_results(
+    plotter = SimulationPlotter(
         time_data=processed_plot_data['time_data'],
         temperatures=processed_plot_data['temperatures'],
         ac_power_log=processed_plot_data['ac_power_log'],
-        cabin_cool_power_log=processed_plot_data['cabin_cool_power_log'],
+        cabin_cool_power_log=processed_plot_data['cabin_cool_power_log'], # This is Q_cabin_evap_log
         speed_profile=processed_plot_data['speed_profile'],
         heat_gen_profiles=processed_plot_data['heat_gen_profiles'],
         battery_power_profiles=processed_plot_data['battery_power_profiles'],
-        sim_params=processed_plot_data['sim_params_dict'], # This is the sim_params_dict
+        sim_params=processed_plot_data['sim_params_dict'], # Pass the dictionary
         cop_value=cop_value,
-        cooling_system_logs=processed_plot_data['cooling_system_logs']
+        cooling_system_logs=processed_plot_data['cooling_system_logs'],
+        output_dir="simulation_plots_oop",  # Optional: specify different output directory
+        extrema_text_fontsize=16            # Optional: specify font size for extrema
     )
+    all_temperature_extrema = plotter.generate_all_plots()
     print("Plotting finished.")
 
     # --- 5. Print Analysis from Analyzer ---

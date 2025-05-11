@@ -1,6 +1,16 @@
-# heat_transfer.py
-from heat_vehicle import rho_air_func # Import necessary function
+# heat_cabin.py
 #计算座舱热负荷
+def rho_air_func(t):
+    """计算给定温度下的空气密度。
+    参数:
+    t: 环境温度 (°C)。
+    返回:
+    空气密度 (kg/m^3)。
+    """
+    t_k = t + 273.15# 开尔文 = 摄氏度 + 273.15
+    p = 101325# 标准大气压 (单位: 帕斯卡 Pa)
+    R_air = 287.05# 空气的比气体常数 (单位: 焦耳/(千克·开尔文) J/(kg·K))
+    return p / (R_air * t_k)# 根据理想气体状态方程 rho = p / (R * T) 计算空气密度
 def heat_universal_func(N_passengers):
     """计算座舱内部通用热源"""
     q_person = 100

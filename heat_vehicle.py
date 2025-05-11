@@ -1,4 +1,4 @@
-# vehicle_physics.py
+# heat_vehicle.py
 # 该模块包含用于计算车辆基本物理特性相关的函数，
 # 此程序默认输入数值合法。
 def rho_air_func(t):
