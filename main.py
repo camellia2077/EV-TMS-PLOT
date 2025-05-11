@@ -38,7 +38,9 @@ def main():
     analyzer = ResultsAnalyzer(raw_simulation_results, sp)
     processed_plot_data = analyzer.post_process_data()
     print("Results processing finished.")
-
+    mid_time = time.time()
+    time_dur_mid = mid_time - start_time
+    print(f"Mid time:{time_dur_mid:.4f}s")
     # --- 4. Plotting Results ---
     print("\n--- Plotting ---")
     # The plot_results function in plotting.py expects data in a specific format.
@@ -61,8 +63,8 @@ def main():
     analyzer.print_temperature_extrema(all_temperature_extrema)
     analyzer.analyze_chiller_transitions()
     end_start_time = time.time()
-    time_duration = start_time - end_start_time
-    print(f"Total execution time:{time_duration}")
+    time_duration = end_start_time - start_time
+    print(f"Total execution time:{time_duration:.2f}s")
     print("\nProgram finished successfully.")
 
 if __name__ == "__main__":
