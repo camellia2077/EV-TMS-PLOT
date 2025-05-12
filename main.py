@@ -5,7 +5,7 @@ import simulation_parameters as sp # Parameters are loaded when this module is i
 import refrigeration_cycle as rc
 from simulation_engine import SimulationEngine
 from results_analyzer import ResultsAnalyzer
-from plotting import SimulationPlotter # <--- 修改导入
+from plotting import SimulationPlotter 
 
 def main():
     start_time = time.time()
