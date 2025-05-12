@@ -54,7 +54,6 @@ class SimulationPlotter:
         查找极值
         """
         extrema_coords = {'minima': [], 'maxima': []}
-        should_plot_annotations = label_prefix != '座舱'
         n = len(data)
         if n < 3: # Need at least 3 points to find a local extremum
             return extrema_coords
@@ -62,22 +61,13 @@ class SimulationPlotter:
         for i in range(1, n - 1):
             # Check for local maximum
             if data[i] > data[i-1] and data[i] > data[i+1]:
-                # Optional: Add a threshold to avoid detecting minor fluctuations
-                # if abs(data[i] - data[i-1]) > tolerance and abs(data[i] - data[i+1]) > tolerance:
                 if 0 <= i < len(time_minutes): # Check index bounds
                     extrema_coords['maxima'].append((time_minutes[i], data[i]))
-                    if should_plot_annotations:
-                        ax.text(time_minutes[i], data[i], f'{data[i]:.1f}°C\n({time_minutes[i]:.1f}min)',
-                                fontsize=text_fontsize, color=color, ha='center', va='bottom')
             # Check for local minimum
             elif data[i] < data[i-1] and data[i] < data[i+1]:
-                # Optional: Add a threshold
-                # if abs(data[i] - data[i-1]) > tolerance and abs(data[i] - data[i+1]) > tolerance:
                 if 0 <= i < len(time_minutes): # Check index bounds
                     extrema_coords['minima'].append((time_minutes[i], data[i]))
-                    if should_plot_annotations:
-                        ax.text(time_minutes[i], data[i], f'{data[i]:.1f}°C\n({time_minutes[i]:.1f}min)',
-                                fontsize=text_fontsize, color=color, ha='center', va='top')
+
         return extrema_coords
 
     def _setup_common_plot_settings(self):
@@ -110,7 +100,11 @@ class SimulationPlotter:
         prepared_data['chiller_active_log'] = _ensure(self.cooling_system_logs_raw.get('chiller_active', np.array([])), n_total_points)
         
         # 旧的散热器效能日志，现在用 LTR 效能日志替代
-        prepared_data['LTR_effectiveness_log'] = _ensure(self.cooling_system_logs_raw.get('LTR_effectiveness', np.array([])), n_total_points) # 新键
+        
+        prepared_data['LTR_level_log'] = _ensure(self.cooling_system_logs_raw.get('LTR_level', np.array([])), n_total_points)
+        prepared_data['P_LTR_fan_log'] = _ensure(self.cooling_system_logs_raw.get('P_LTR_fan', np.array([])), n_total_points)
+
+
         # 旧的散热器散热量日志，现在用 LTR 散热量替代
         prepared_data['Q_LTR_to_ambient_log'] = _ensure(self.cooling_system_logs_raw.get('Q_LTR_to_ambient', np.array([])), n_total_points) # 新键
 
@@ -227,7 +221,7 @@ class SimulationPlotter:
         """
         fig, ax1 = plt.subplots(figsize=self.common_settings['figure_size'])
         data = self.prepared_data # self.prepared_data 使用的是新的键名
-        chart_title = '制冷/散热系统运行状态、LTR效能及相关功率' # 更新图表标题
+        chart_title = '制冷/散热系统运行状态、LTR风扇功率及相关功率' # 更新图表标题
         print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
         print("--- Average Values for Cooling System Operation Plot ---")
@@ -248,7 +242,7 @@ class SimulationPlotter:
         # ^^^^^^ 修改这里的键名 ^^^^^^
         
         ax1.set_xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
-        ax1.set_ylabel('状态 / LTR效能因子', fontsize=self.common_settings['axis_label_fs']) # 更新Y轴标签
+        ax1.set_ylabel('状态 / LTR风扇功率 (W)', fontsize=self.common_settings['axis_label_fs']) # 更新Y轴标签
         ax1.tick_params(axis='x', labelsize=self.common_settings['tick_label_fs'])
         ax1.tick_params(axis='y', labelsize=self.common_settings['tick_label_fs'])
         ax1.set_ylim(-0.1, 1.1)
@@ -262,14 +256,13 @@ class SimulationPlotter:
         else:
             print("Warning: 'P_comp_elec_profile' not found or empty in prepared_data.")
 
-        # VVVVVV 修改这里的键名 VVVVVV
         q_ltr_to_ambient_data = data.get('Q_LTR_to_ambient_log', []) # 使用新的键名 'Q_LTR_to_ambient_log'
         if len(q_ltr_to_ambient_data) > 0:
             print(f"Average Actual LTR Heat Dissipation: {np.mean(q_ltr_to_ambient_data):.2f} W")
             ax2.plot(self.time_minutes, q_ltr_to_ambient_data, label=f'LTR实际散热 (W)', color='orange', alpha=0.8, linestyle='-.') # 更新标签
         else:
             print("Warning: 'Q_LTR_to_ambient_log' not found or empty in prepared_data.")
-        # ^^^^^^ 修改这里的键名 ^^^^^^
+
         
         ax2.set_ylabel('功率 (W)', color='gray', fontsize=self.common_settings['axis_label_fs'])
         ax2.tick_params(axis='y', labelcolor='gray', labelsize=self.common_settings['tick_label_fs'])

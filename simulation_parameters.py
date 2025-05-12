@@ -97,23 +97,42 @@ UA_coolant_LCC = get_config_value('Vehicle', 'UA_coolant_LCC', float, 1800)
 UA_LTR_max = get_config_value('Vehicle', 'UA_LTR_max', float, 2000)
 LTR_effectiveness_levels = get_config_value('Vehicle', 'LTR_effectiveness_levels', int, 3)
 
-LTR_effectiveness_factors_str = get_config_value('Vehicle', 'LTR_effectiveness_factors', str, '0.0, 0.5, 1.0')
-LTR_effectiveness_factors = [float(x.strip()) for x in LTR_effectiveness_factors_str.split(',')]
+#LTR_effectiveness_factors_str = get_config_value('Vehicle', 'LTR_effectiveness_factors', str, '0.0, 0.5, 1.0')
+#LTR_effectiveness_factors = [float(x.strip()) for x in LTR_effectiveness_factors_str.split(',')]
+
+# ADD LTR_fan_power_levels
+LTR_fan_power_levels_str = get_config_value('Vehicle', 'LTR_fan_power_levels', str, '0, 50, 100, 200')
+LTR_fan_power_levels = [float(x.strip()) for x in LTR_fan_power_levels_str.split(',')]
+
+# ADD LTR_UA_values_at_levels
+LTR_UA_values_at_levels_str = get_config_value('Vehicle', 'LTR_UA_values_at_levels', str, '200, 800, 1500, 2000')
+LTR_UA_values_at_levels = [float(x.strip()) for x in LTR_UA_values_at_levels_str.split(',')]
 
 LTR_coolant_temp_thresholds_str = get_config_value('Vehicle', 'LTR_coolant_temp_thresholds', str, '45, 55')
 LTR_coolant_temp_thresholds = [float(x.strip()) for x in LTR_coolant_temp_thresholds_str.split(',')]
 
+LTR_coolant_temp_thresholds_str = get_config_value('Vehicle', 'LTR_coolant_temp_thresholds', str, '40, 50, 60')
+LTR_coolant_temp_thresholds = [float(x.strip()) for x in LTR_coolant_temp_thresholds_str.split(',')]
+
 # --- Validation for LTR parameters ---
-if len(LTR_effectiveness_factors) != LTR_effectiveness_levels:
-    raise ValueError(f"Config error: Number of LTR_effectiveness_factors ({len(LTR_effectiveness_factors)}) must match LTR_effectiveness_levels ({LTR_effectiveness_levels}).")
+if len(LTR_fan_power_levels) != LTR_effectiveness_levels:
+    raise ValueError(f"Config error: Number of LTR_fan_power_levels ({len(LTR_fan_power_levels)}) must match LTR_effectiveness_levels ({LTR_effectiveness_levels}).")
+
+if len(LTR_UA_values_at_levels) != LTR_effectiveness_levels:
+    raise ValueError(f"Config error: Number of LTR_UA_values_at_levels ({len(LTR_UA_values_at_levels)}) must match LTR_effectiveness_levels ({LTR_effectiveness_levels}).")
+
 if len(LTR_coolant_temp_thresholds) != LTR_effectiveness_levels - 1:
      raise ValueError(f"Config error: Number of LTR_coolant_temp_thresholds ({len(LTR_coolant_temp_thresholds)}) must be one less than LTR_effectiveness_levels ({LTR_effectiveness_levels}).")
-# Ensure thresholds are sorted
+
+# Ensure thresholds are sorted (unchanged)
 if not all(LTR_coolant_temp_thresholds[i] <= LTR_coolant_temp_thresholds[i+1] for i in range(len(LTR_coolant_temp_thresholds)-1)):
     raise ValueError("Config error: LTR_coolant_temp_thresholds must be in non-decreasing order.")
-# Ensure effectiveness factors are sorted (optional but good practice)
-if not all(LTR_effectiveness_factors[i] <= LTR_effectiveness_factors[i+1] for i in range(len(LTR_effectiveness_factors)-1)):
-     print("Warning: LTR_effectiveness_factors are not in non-decreasing order. Ensure this is intended.")
+
+# (Optional validation for fan powers and UA values - e.g., non-decreasing)
+if not all(LTR_fan_power_levels[i] <= LTR_fan_power_levels[i+1] for i in range(len(LTR_fan_power_levels)-1)):
+     print("Warning: LTR_fan_power_levels are not in non-decreasing order. Ensure this is intended.")
+if not all(LTR_UA_values_at_levels[i] <= LTR_UA_values_at_levels[i+1] for i in range(len(LTR_UA_values_at_levels)-1)):
+     print("Warning: LTR_UA_values_at_levels are not in non-decreasing order. Ensure this is intended.")
 
 
 N_passengers = get_config_value('Vehicle', 'N_passengers', int, 2)
@@ -203,4 +222,4 @@ print(f"Radiator effectiveness at target: {radiator_effectiveness_at_target}")
 print(f"Radiator effectiveness below stop cool: {radiator_effectiveness_below_stop_cool}")
 print(f"LCC UA: {UA_coolant_LCC} W/K")
 print(f"LTR Max UA: {UA_LTR_max} W/K")
-print(f"LTR Levels: {LTR_effectiveness_levels}, Factors: {LTR_effectiveness_factors}, Thresholds: {LTR_coolant_temp_thresholds}")
+print(f"LTR Levels: {LTR_effectiveness_levels}, Thresholds: {LTR_coolant_temp_thresholds}")
