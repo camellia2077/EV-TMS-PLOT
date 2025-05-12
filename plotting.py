@@ -335,10 +335,22 @@ class SimulationPlotter:
         """Plots temperatures vs. vehicle speed during acceleration phase."""
         plt.figure(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
-        ramp_up_steps = int(self.sim_params['ramp_up_time_sec'] / self.sim_params.get('dt', 1)) if self.sim_params.get('dt', 1) > 0 else 0
-        ramp_up_index = min(ramp_up_steps, len(data['v_vehicle_profile']) -1 )
+        # 从 self.sim_params 获取 ramp_up_time_sec 和 dt
+        ramp_up_time_sec = self.sim_params.get('ramp_up_time_sec', 0)
+        dt_sim = self.sim_params.get('dt', 1)
+        
+        ramp_up_steps = int(ramp_up_time_sec / dt_sim) if dt_sim > 0 else 0
+        
+        # 确保 ramp_up_index 不会超出实际数据长度
+        # v_vehicle_profile 的长度可能因为仿真总时长小于 ramp_up_time_sec 而较短
+        max_possible_index = len(data['v_vehicle_profile']) -1
+        ramp_up_index = min(ramp_up_steps, max_possible_index)
 
-        if ramp_up_index > 0 and len(data['v_vehicle_profile']) > ramp_up_index:
+
+        if ramp_up_index > 0 and len(data['v_vehicle_profile']) > ramp_up_index : # 确保有足够的加速数据点
+            # 截取加速阶段的数据
+            # 注意：如果ramp_up_index对应的时间点恰好是ramp_up_time_sec，那么切片应该是 data[...][0:ramp_up_index + 1]
+            # 以包含ramp_up_index这一点。
             v_accel = data['v_vehicle_profile'][0:ramp_up_index + 1]
             T_motor_accel = data['T_motor'][0:ramp_up_index + 1]
             T_inv_accel = data['T_inv'][0:ramp_up_index + 1]
@@ -346,22 +358,51 @@ class SimulationPlotter:
             T_cabin_accel = data['T_cabin'][0:ramp_up_index + 1]
             T_coolant_accel = data['T_coolant'][0:ramp_up_index + 1]
 
+            # 绘制实际温度曲线
             plt.plot(v_accel, T_motor_accel, label='电机温度 (°C)', color='blue', marker='.', markersize=1, linestyle='-')
             plt.plot(v_accel, T_inv_accel, label='逆变器温度 (°C)', color='orange', marker='.', markersize=1, linestyle='-')
             plt.plot(v_accel, T_batt_accel, label='电池温度 (°C)', color='green', marker='.', markersize=1, linestyle='-')
             plt.plot(v_accel, T_cabin_accel, label='座舱温度 (°C)', color='red', marker='.', markersize=1, linestyle='-')
             plt.plot(v_accel, T_coolant_accel, label='冷却液温度 (°C)', color='purple', marker='.', markersize=1, linestyle='-', alpha=0.6)
+
+            # --- 新增：绘制目标温度虚线 ---
+            # 电机目标温度
+            if 'T_motor_target' in self.sim_params:
+                plt.axhline(self.sim_params['T_motor_target'], color='blue', linestyle='--', alpha=0.7, 
+                            label=f'电机目标 ({self.sim_params["T_motor_target"]}°C)')
+            # 逆变器目标温度
+            if 'T_inv_target' in self.sim_params:
+                plt.axhline(self.sim_params['T_inv_target'], color='orange', linestyle='--', alpha=0.7, 
+                            label=f'逆变器目标 ({self.sim_params["T_inv_target"]}°C)')
+            # 电池制冷启动目标温度 (通常作为电池的上限控制目标)
+            if 'T_batt_target_high' in self.sim_params:
+                plt.axhline(self.sim_params['T_batt_target_high'], color='green', linestyle='--', alpha=0.7, 
+                            label=f'电池制冷启动 ({self.sim_params["T_batt_target_high"]}°C)')
+            # 座舱目标温度
+            if 'T_cabin_target' in self.sim_params:
+                plt.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, 
+                            label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
+            # ---------------------------------
+
             plt.xlabel('车速 (km/h)', fontsize=self.common_settings['axis_label_fs'])
             plt.ylabel('温度 (°C)', fontsize=self.common_settings['axis_label_fs'])
             plt.xticks(fontsize=self.common_settings['tick_label_fs'])
             plt.yticks(fontsize=self.common_settings['tick_label_fs'])
             plt.title(f'加速阶段部件温度随车速变化轨迹 ({self.sim_params.get("v_start", "N/A")}到{self.sim_params.get("v_end","N/A")} km/h)', fontsize=self.common_settings['title_fs'])
-            plt.legend(loc='best', fontsize=self.common_settings['legend_font_size'])
+            
+            # 更新图例以包含目标温度线
+            # 获取所有线的句柄和标签
+            handles, labels = plt.gca().get_legend_handles_labels()
+            # 使用 OrderedDict 去除重复的标签，同时保持顺序
+            from collections import OrderedDict
+            by_label = OrderedDict(zip(labels, handles))
+            plt.legend(by_label.values(), by_label.keys(), loc='best', fontsize=self.common_settings['legend_font_size'])
+            
             plt.grid(True)
             if len(v_accel) > 1 :
                 plt.xlim(left=min(v_accel), right=max(v_accel))
-            elif len(v_accel) == 1:
-                plt.xlim(left=v_accel[0]-5, right=v_accel[0]+5)
+            elif len(v_accel) == 1: # 处理只有一个数据点的情况
+                plt.xlim(left=v_accel[0]-5, right=v_accel[0]+5) # 给单个点左右留出一些空间
 
             plt.tight_layout()
             filename = os.path.join(self.output_dir, "plot_temp_vs_speed_accel.png")
@@ -369,7 +410,19 @@ class SimulationPlotter:
             plt.close()
             print(f"Saved: {filename}")
         else:
+            # 根据您的代码，ramp_up_index <= 0 或 len(data['v_vehicle_profile']) <= ramp_up_index 时会到这里
+            # 这意味着加速阶段数据不足或不存在
             print("Warning: No or insufficient acceleration phase data to generate plot_temp_vs_speed_accel.")
+            # 即使没有加速数据，如果仍然想创建一个空的图或带有消息的图，可以在这里处理
+            # 例如，创建一个带有文本消息的空图
+            # fig, ax = plt.subplots(figsize=self.common_settings['figure_size'])
+            # ax.text(0.5, 0.5, '无加速阶段数据', horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
+            # plt.title('加速阶段部件温度随车速变化轨迹', fontsize=self.common_settings['title_fs'])
+            # filename = os.path.join(self.output_dir, "plot_temp_vs_speed_accel_no_data.png")
+            # plt.savefig(filename, dpi=self.common_settings['dpi'])
+            # plt.close(fig)
+            # print(f"Saved (empty plot): {filename}")
+            pass # 当前代码是直接跳过绘图
 
     def plot_temp_at_const_speed(self):
         """Plots temperatures during constant speed phase."""
