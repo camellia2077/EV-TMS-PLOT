@@ -1,7 +1,7 @@
 # results_analyzer.py
 import numpy as np
 import heat_vehicle as hv
-from plotting import SimulationPlotter # <--- 修改导入方式，直接导入类
+from plotting import SimulationPlotter
 
 class ResultsAnalyzer:
     def __init__(self, simulation_results, sp):
@@ -32,7 +32,7 @@ class ResultsAnalyzer:
         self.processed_data['time_data'] = self.raw_results['time_sim']
         self.processed_data['temperatures'] = self.raw_results['temperatures_data']
         self.processed_data['ac_power_log'] = self.raw_results['ac_power_log']
-        self.processed_data['cabin_cool_power_log'] = self.raw_results['cooling_system_logs']['Q_cabin_evap']
+        self.processed_data['cabin_cool_power_log'] = self.raw_results['cooling_system_logs']['Q_cabin_evap_cooling']
         self.processed_data['speed_profile'] = self.raw_results['speed_profile']
         self.processed_data['heat_gen_profiles'] = self.raw_results['heat_gen_data']
         self.processed_data['battery_power_profiles'] = {
@@ -64,9 +64,14 @@ class ResultsAnalyzer:
             'axis_label_font_size': self.sp.axis_label_font_size,
             'tick_label_font_size': self.sp.tick_label_font_size,
             'title_font_size': self.sp.title_font_size,
-            'UA_coolant_radiator_max': self.sp.UA_coolant_radiator_max,
-            'radiator_effectiveness_at_target': self.sp.radiator_effectiveness_at_target,
-            'radiator_effectiveness_below_stop_cool': self.sp.radiator_effectiveness_below_stop_cool
+
+            'UA_LTR_max': getattr(self.sp, 'UA_LTR_max', None), # 使用 getattr 添加 LTR 参数
+            'LTR_effectiveness_levels': getattr(self.sp, 'LTR_effectiveness_levels', None),
+            'LTR_effectiveness_factors': getattr(self.sp, 'LTR_effectiveness_factors', None),
+            'LTR_coolant_temp_thresholds': getattr(self.sp, 'LTR_coolant_temp_thresholds', None),
+            'UA_coolant_LCC': getattr(self.sp, 'UA_coolant_LCC', None),
+            
+            
         }
         return self.processed_data
 
@@ -127,11 +132,23 @@ class ResultsAnalyzer:
             print(f"    空调压缩机总电耗: {avg_ac_power:.2f} W")
         
         cooling_logs = processed_data.get('cooling_system_logs', {})
-        q_radiator = cooling_logs.get('Q_radiator')
-        if q_radiator is not None and len(q_radiator) > 0:
-            avg_q_radiator = np.mean(q_radiator)
-            print(f"    散热器实际散热功率: {avg_q_radiator:.2f} W")
+        q_ltr_to_ambient = cooling_logs.get('Q_LTR_to_ambient')
+        if q_ltr_to_ambient is not None and len(q_ltr_to_ambient) > 0:
+            avg_q_ltr = np.mean(q_ltr_to_ambient)
+            print(f"    外置散热器(LTR)实际散热功率: {avg_q_ltr:.2f} W") # 修改标签
         
+        # --- 添加 LCC 热量 ---
+        q_coolant_from_lcc = cooling_logs.get('Q_coolant_from_LCC')
+        if q_coolant_from_lcc is not None and len(q_coolant_from_lcc) > 0:
+            avg_q_lcc = np.mean(q_coolant_from_lcc)
+            print(f"    LCC从制冷剂吸收热量: {avg_q_lcc:.2f} W")
+
+        # --- Chiller 热量 (键名已更新) ---
+        q_coolant_to_chiller = cooling_logs.get('Q_coolant_to_chiller')
+        if q_coolant_to_chiller is not None and len(q_coolant_to_chiller) > 0:
+            avg_q_chiller = np.mean(q_coolant_to_chiller)
+            print(f"    冷却液到Chiller的热量: {avg_q_chiller:.2f} W")
+
         if 'speed_profile' in processed_data and processed_data['speed_profile'] is not None and len(processed_data['speed_profile']) > 0:
             avg_speed = np.mean(processed_data['speed_profile'])
             print(f"\n  平均车速: {avg_speed:.2f} km/h")
@@ -174,39 +191,43 @@ class ResultsAnalyzer:
             q_batt = processed_data['heat_gen_profiles']['batt']
             q_cabin_load = processed_data['heat_gen_profiles']['cabin_load']
             
-            q_radiator_cb = cooling_logs.get('Q_radiator') 
-            q_pt_chiller = cooling_logs.get('Q_chiller_powertrain')
-            q_cabin_evap = cooling_logs.get('Q_cabin_evap') 
+            # 获取散热量 (使用更新后的键名)
+            q_ltr_cb = cooling_logs.get('Q_LTR_to_ambient')      # LTR 散热
+            q_pt_chiller_cb = cooling_logs.get('Q_coolant_to_chiller') # Chiller 从冷却液吸收热量
+            q_cabin_evap_cb = cooling_logs.get('Q_cabin_evap_cooling') # 座舱蒸发器吸收热量
+
+            # LCC 热量 (从制冷剂到冷却液)
+            q_lcc_cb = cooling_logs.get('Q_coolant_from_LCC')
 
             all_components_present = all(
-                d is not None and len(d) > 0 for d in 
-                [q_motor, q_inv, q_batt, q_cabin_load, q_radiator_cb, q_pt_chiller, q_cabin_evap]
+                d is not None and len(d) > 0 for d in
+                [q_motor, q_inv, q_batt, q_cabin_load, q_ltr_cb, q_pt_chiller_cb, q_cabin_evap_cb]
             )
 
             if all_components_present:
-                target_len = len(self.time_sim) 
-                
-                # VVVVVV 修改以下行 VVVVVV
+                target_len = len(self.time_sim)
+
                 q_motor_arr = SimulationPlotter._ensure_profile_length(np.array(q_motor), target_len)
                 q_inv_arr = SimulationPlotter._ensure_profile_length(np.array(q_inv), target_len)
                 q_batt_arr = SimulationPlotter._ensure_profile_length(np.array(q_batt), target_len)
                 q_cabin_load_arr = SimulationPlotter._ensure_profile_length(np.array(q_cabin_load), target_len)
-                q_radiator_arr = SimulationPlotter._ensure_profile_length(np.array(q_radiator_cb), target_len)
-                q_pt_chiller_arr = SimulationPlotter._ensure_profile_length(np.array(q_pt_chiller), target_len)
-                q_cabin_evap_arr = SimulationPlotter._ensure_profile_length(np.array(q_cabin_evap), target_len)
-                # ^^^^^^ 修改以上行 ^^^^^^
+                q_ltr_arr = SimulationPlotter._ensure_profile_length(np.array(q_ltr_cb), target_len)
+                q_pt_chiller_arr = SimulationPlotter._ensure_profile_length(np.array(q_pt_chiller_cb), target_len)
+                q_cabin_evap_arr = SimulationPlotter._ensure_profile_length(np.array(q_cabin_evap_cb), target_len)
 
+                # 总产热/负荷 = 电机产热 + 逆变器产热 + 电池产热 + 座舱热负荷
                 total_heat_load = q_motor_arr + q_inv_arr + q_batt_arr + q_cabin_load_arr
-                total_heat_rejection = q_radiator_arr + q_pt_chiller_arr + q_cabin_evap_arr
-                
+                # 总散热/制冷 = LTR散热 + Chiller从冷却液吸热 + 座舱蒸发器吸热
+                total_heat_rejection_cooling = q_ltr_arr + q_pt_chiller_arr + q_cabin_evap_arr
+
                 avg_total_load = np.mean(total_heat_load)
-                avg_total_rejection = np.mean(total_heat_rejection)
-                print("\n  平均总热平衡功率 (W):")
-                print(f"    总热负荷功率: {avg_total_load:.2f} W")
-                print(f"    总散热系统散热功率: {avg_total_rejection:.2f} W")
+                avg_total_rejection_cooling = np.mean(total_heat_rejection_cooling)
+                print("\n  平均总热负荷 vs 总散热/制冷功率 (W):")
+                print(f"    总产热/负荷功率: {avg_total_load:.2f} W")
+                print(f"    总散热系统移除功率 (LTR+Chiller+CabinEvap): {avg_total_rejection_cooling:.2f} W")
         except KeyError as e:
             print(f"\n  注意: 无法计算平均总热平衡，缺少数据: {e}")
-        except Exception as e: 
+        except Exception as e:
             print(f"\n  计算平均总热平衡时发生错误: {e}")
 
         print("\n--- 平均值打印结束 ---")

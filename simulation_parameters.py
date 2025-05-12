@@ -84,13 +84,37 @@ coolant_volume_liters = get_config_value('Vehicle', 'coolant_volume_liters', flo
 mass_coolant = coolant_volume_liters * rho_coolant / 1000
 mc_coolant = mass_coolant * cp_coolant
 
+
 UA_motor_coolant = get_config_value('Vehicle', 'UA_motor_coolant', float, 500)
 UA_inv_coolant = get_config_value('Vehicle', 'UA_inv_coolant', float, 300)
 UA_batt_coolant = get_config_value('Vehicle', 'UA_batt_coolant', float, 1000)
 UA_coolant_chiller = get_config_value('Vehicle', 'UA_coolant_chiller', float, 1500)
-# 重命名 UA_coolant_radiator 为 UA_coolant_radiator_max，表示散热器最大能力
-UA_coolant_radiator_max = get_config_value('Vehicle', 'UA_coolant_radiator', float, 1200)
 UA_cabin_evap = get_config_value('Vehicle', 'UA_cabin_evap', float, 2000)
+
+UA_coolant_LCC = get_config_value('Vehicle', 'UA_coolant_LCC', float, 1800)
+
+# --- Read New External Radiator (LTR) Parameters ---
+UA_LTR_max = get_config_value('Vehicle', 'UA_LTR_max', float, 2000)
+LTR_effectiveness_levels = get_config_value('Vehicle', 'LTR_effectiveness_levels', int, 3)
+
+LTR_effectiveness_factors_str = get_config_value('Vehicle', 'LTR_effectiveness_factors', str, '0.0, 0.5, 1.0')
+LTR_effectiveness_factors = [float(x.strip()) for x in LTR_effectiveness_factors_str.split(',')]
+
+LTR_coolant_temp_thresholds_str = get_config_value('Vehicle', 'LTR_coolant_temp_thresholds', str, '45, 55')
+LTR_coolant_temp_thresholds = [float(x.strip()) for x in LTR_coolant_temp_thresholds_str.split(',')]
+
+# --- Validation for LTR parameters ---
+if len(LTR_effectiveness_factors) != LTR_effectiveness_levels:
+    raise ValueError(f"Config error: Number of LTR_effectiveness_factors ({len(LTR_effectiveness_factors)}) must match LTR_effectiveness_levels ({LTR_effectiveness_levels}).")
+if len(LTR_coolant_temp_thresholds) != LTR_effectiveness_levels - 1:
+     raise ValueError(f"Config error: Number of LTR_coolant_temp_thresholds ({len(LTR_coolant_temp_thresholds)}) must be one less than LTR_effectiveness_levels ({LTR_effectiveness_levels}).")
+# Ensure thresholds are sorted
+if not all(LTR_coolant_temp_thresholds[i] <= LTR_coolant_temp_thresholds[i+1] for i in range(len(LTR_coolant_temp_thresholds)-1)):
+    raise ValueError("Config error: LTR_coolant_temp_thresholds must be in non-decreasing order.")
+# Ensure effectiveness factors are sorted (optional but good practice)
+if not all(LTR_effectiveness_factors[i] <= LTR_effectiveness_factors[i+1] for i in range(len(LTR_effectiveness_factors)-1)):
+     print("Warning: LTR_effectiveness_factors are not in non-decreasing order. Ensure this is intended.")
+
 
 N_passengers = get_config_value('Vehicle', 'N_passengers', int, 2)
 v_air_in_mps = get_config_value('Vehicle', 'v_air_in_mps', float, 0.5)
@@ -177,3 +201,6 @@ print(f"Cabin cooling levels (W): {cabin_cooling_power_levels}")
 print(f"Cabin cooling upper temp thresholds (°C): {cabin_cooling_temp_thresholds}")
 print(f"Radiator effectiveness at target: {radiator_effectiveness_at_target}")
 print(f"Radiator effectiveness below stop cool: {radiator_effectiveness_below_stop_cool}")
+print(f"LCC UA: {UA_coolant_LCC} W/K")
+print(f"LTR Max UA: {UA_LTR_max} W/K")
+print(f"LTR Levels: {LTR_effectiveness_levels}, Factors: {LTR_effectiveness_factors}, Thresholds: {LTR_coolant_temp_thresholds}")
