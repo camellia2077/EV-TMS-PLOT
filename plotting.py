@@ -456,6 +456,48 @@ class SimulationPlotter:
         plt.savefig(filename, dpi=self.common_settings['dpi'])
         plt.close()
         print(f"Saved: {filename}")
+    def plot_ac_chiller_specific(self):
+        """Plots AC Compressor Power and Powertrain Chiller Status specifically.
+        空调压缩机总电耗与动力总成Chiller状态
+        """
+        fig, ax1 = plt.subplots(figsize=self.common_settings['figure_size'])
+        data = self.prepared_data
+        time_minutes = self.time_minutes
+        # Plot Powertrain Chiller Status on the first y-axis
+        ax1.plot(time_minutes, data['chiller_active_log'], label='动力总成Chiller状态 (1=ON)', color='black', drawstyle='steps-post', alpha=0.7)
+        ax1.set_xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
+        ax1.set_ylabel('动力总成Chiller状态', color='black', fontsize=self.common_settings['axis_label_fs'])
+        ax1.tick_params(axis='y', labelcolor='black', labelsize=self.common_settings['tick_label_fs'])
+        ax1.tick_params(axis='x', labelsize=self.common_settings['tick_label_fs'])
+        ax1.set_ylim(-0.1, 1.1)
+        ax1.grid(True, linestyle=':', alpha=0.6)
+
+        # Create a second y-axis for AC Compressor Power
+        ax2 = ax1.twinx()
+        ax2.plot(time_minutes, data['P_comp_elec_profile'], label='空调压缩机总电耗 (W)', color='cyan', alpha=0.8, linestyle='-')
+        ax2.set_ylabel('空调压缩机总电耗 (W)', color='cyan', fontsize=self.common_settings['axis_label_fs'])
+        ax2.tick_params(axis='y', labelcolor='cyan', labelsize=self.common_settings['tick_label_fs'])
+        min_power_y2 = 0
+        # Ensure P_comp_elec_profile is not empty before calling np.max
+        max_val_p_comp = 0
+        if data['P_comp_elec_profile'] is not None and len(data['P_comp_elec_profile']) > 0:
+            max_val_p_comp = np.max(data['P_comp_elec_profile'])
+
+        ax2.set_ylim(min_power_y2, max_val_p_comp * 1.1 if max_val_p_comp > 0 else 100) # Adjust y-limit based on data
+
+        # Add legends
+        lines, labels = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        # Ensure there are labels to prevent UserWarning if a plot has no label
+        if labels or labels2:
+            ax2.legend(lines + lines2, labels + labels2, loc='best', fontsize=self.common_settings['legend_font_size'])
+
+        plt.title('空调压缩机总电耗与动力总成Chiller状态', fontsize=self.common_settings['title_fs'])
+        plt.tight_layout()
+        filename = os.path.join(self.output_dir, "plot_ac_chiller_specific.png") # 新的文件名
+        plt.savefig(filename, dpi=self.common_settings['dpi'])
+        plt.close(fig)
+        print(f"Saved: {filename}")
 
 
     def generate_all_plots(self):
@@ -476,6 +518,7 @@ class SimulationPlotter:
         self.plot_temp_vs_speed_accel()
         self.plot_temp_at_const_speed()
         self.plot_total_heat_balance()
+        self.plot_ac_chiller_specific()
 
         print("All plots generation attempt finished.")
         return self.all_extrema_data
