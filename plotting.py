@@ -463,16 +463,19 @@ class SimulationPlotter:
         fig, ax1 = plt.subplots(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
         time_minutes = self.time_minutes
-        # Plot Powertrain Chiller Status on the first y-axis
+        max_time = np.max(time_minutes) if len(time_minutes) > 0 else 1 # 避免time_minutes为空
+        ax1.set_xlim(0, max_time)
+
         ax1.plot(time_minutes, data['chiller_active_log'], label='动力总成Chiller状态 (1=ON)', color='black', drawstyle='steps-post', alpha=0.7)
         ax1.set_xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
         ax1.set_ylabel('动力总成Chiller状态', color='black', fontsize=self.common_settings['axis_label_fs'])
         ax1.tick_params(axis='y', labelcolor='black', labelsize=self.common_settings['tick_label_fs'])
         ax1.tick_params(axis='x', labelsize=self.common_settings['tick_label_fs'])
-        ax1.set_ylim(-0.1, 1.1)
+        ax1.set_ylim(0, 1.1) # 修改这里，确保从0开始
         ax1.grid(True, linestyle=':', alpha=0.6)
 
         # Create a second y-axis for AC Compressor Power
+        ax1.set_ylim(0, 1.1) # 修改这里，确保从0开始
         ax2 = ax1.twinx()
         ax2.plot(time_minutes, data['P_comp_elec_profile'], label='空调压缩机总电耗 (W)', color='cyan', alpha=0.8, linestyle='-')
         ax2.set_ylabel('空调压缩机总电耗 (W)', color='cyan', fontsize=self.common_settings['axis_label_fs'])
