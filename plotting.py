@@ -106,11 +106,18 @@ class SimulationPlotter:
         prepared_data['T_cabin'] = _ensure(self.temperatures_raw.get('cabin', np.array([])), n_total_points)
         prepared_data['T_coolant'] = _ensure(self.temperatures_raw.get('coolant', np.array([])), n_total_points)
 
+        
         prepared_data['chiller_active_log'] = _ensure(self.cooling_system_logs_raw.get('chiller_active', np.array([])), n_total_points)
-        prepared_data['radiator_effectiveness_log'] = _ensure(self.cooling_system_logs_raw.get('radiator_effectiveness', np.array([])), n_total_points)
-        prepared_data['Q_coolant_radiator_log'] = _ensure(self.cooling_system_logs_raw.get('Q_radiator', np.array([])), n_total_points)
-        prepared_data['Q_powertrain_chiller_log'] = _ensure(self.cooling_system_logs_raw.get('Q_chiller_powertrain', np.array([])), n_total_points)
-        prepared_data['Q_cabin_evap_log'] = _ensure(self.cooling_system_logs_raw.get('Q_cabin_evap', np.array([])), n_total_points)
+        
+        # 旧的散热器效能日志，现在用 LTR 效能日志替代
+        prepared_data['LTR_effectiveness_log'] = _ensure(self.cooling_system_logs_raw.get('LTR_effectiveness', np.array([])), n_total_points) # 新键
+        # 旧的散热器散热量日志，现在用 LTR 散热量替代
+        prepared_data['Q_LTR_to_ambient_log'] = _ensure(self.cooling_system_logs_raw.get('Q_LTR_to_ambient', np.array([])), n_total_points) # 新键
+
+        # Chiller 从冷却液吸收的热量
+        prepared_data['Q_coolant_to_chiller_log'] = _ensure(self.cooling_system_logs_raw.get('Q_coolant_to_chiller', np.array([])), n_total_points) # 更新的键
+        # 座舱蒸发器吸收的热量
+        prepared_data['Q_cabin_evap_cooling_log'] = _ensure(self.cooling_system_logs_raw.get('Q_cabin_evap_cooling', np.array([])), n_total_points) # 更新的键
 
         # Ensure ac_power_log_raw is an array before passing to _ensure
         ac_power_log_data = self.ac_power_log_raw if isinstance(self.ac_power_log_raw, np.ndarray) else np.array(self.ac_power_log_raw)
@@ -219,52 +226,69 @@ class SimulationPlotter:
         Plots cooling system operation status and related powers, and prints their average values.
         """
         fig, ax1 = plt.subplots(figsize=self.common_settings['figure_size'])
-        data = self.prepared_data
-        chart_title = '制冷系统运行状态、散热器效能及相关功率'
+        data = self.prepared_data # self.prepared_data 使用的是新的键名
+        chart_title = '制冷/散热系统运行状态、LTR效能及相关功率' # 更新图表标题
         print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
         print("--- Average Values for Cooling System Operation Plot ---")
-        if len(data['chiller_active_log']) > 0:
-            print(f"Average Powertrain Chiller Status: {np.mean(data['chiller_active_log']):.2f} (1=ON)")
-        ax1.plot(self.time_minutes, data['chiller_active_log'], label='动力总成Chiller状态 (1=ON)', color='black', drawstyle='steps-post', alpha=0.7)
 
-        if len(data['radiator_effectiveness_log']) > 0:
-            print(f"Average Radiator Effectiveness Factor: {np.mean(data['radiator_effectiveness_log']):.2f}")
-        ax1.plot(self.time_minutes, data['radiator_effectiveness_log'], label=f'散热器效能因子 (UA/UA_max)', color='brown', drawstyle='steps-post', linestyle='--', alpha=0.7)
+        if len(data.get('chiller_active_log', [])) > 0: # 使用 .get 以防键不存在
+            print(f"Average Powertrain Chiller Status: {np.mean(data['chiller_active_log']):.2f} (1=ON)")
+            ax1.plot(self.time_minutes, data['chiller_active_log'], label='动力总成Chiller状态 (1=ON)', color='black', drawstyle='steps-post', alpha=0.7)
+        else:
+            print("Warning: 'chiller_active_log' not found or empty in prepared_data.")
+
+        # VVVVVV 修改这里的键名 VVVVVV
+        ltr_effectiveness_data = data.get('LTR_effectiveness_log', []) # 使用新的键名 'LTR_effectiveness_log'
+        if len(ltr_effectiveness_data) > 0:
+            print(f"Average LTR Effectiveness Factor: {np.mean(ltr_effectiveness_data):.2f}")
+            ax1.plot(self.time_minutes, ltr_effectiveness_data, label=f'LTR效能因子 (UA_eff/UA_max)', color='brown', drawstyle='steps-post', linestyle='--', alpha=0.7) # 更新标签
+        else:
+            print("Warning: 'LTR_effectiveness_log' not found or empty in prepared_data.")
+        # ^^^^^^ 修改这里的键名 ^^^^^^
         
         ax1.set_xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
-        ax1.set_ylabel('状态 / 效能因子', fontsize=self.common_settings['axis_label_fs'])
+        ax1.set_ylabel('状态 / LTR效能因子', fontsize=self.common_settings['axis_label_fs']) # 更新Y轴标签
         ax1.tick_params(axis='x', labelsize=self.common_settings['tick_label_fs'])
         ax1.tick_params(axis='y', labelsize=self.common_settings['tick_label_fs'])
         ax1.set_ylim(-0.1, 1.1)
         ax1.grid(True, linestyle=':', alpha=0.6)
 
         ax2 = ax1.twinx()
-        if len(data['P_comp_elec_profile']) > 0:
-            print(f"Average AC Compressor Total Electrical Power: {np.mean(data['P_comp_elec_profile']):.2f} W")
-        ax2.plot(self.time_minutes, data['P_comp_elec_profile'], label=f'空调压缩机总电耗 (W)', color='cyan', alpha=0.8, linestyle='-')
+        p_comp_elec_data = data.get('P_comp_elec_profile', [])
+        if len(p_comp_elec_data) > 0:
+            print(f"Average AC Compressor Total Electrical Power: {np.mean(p_comp_elec_data):.2f} W")
+            ax2.plot(self.time_minutes, p_comp_elec_data, label=f'空调压缩机总电耗 (W)', color='cyan', alpha=0.8, linestyle='-')
+        else:
+            print("Warning: 'P_comp_elec_profile' not found or empty in prepared_data.")
 
-        if len(data['Q_coolant_radiator_log']) > 0:
-            print(f"Average Actual Radiator Heat Dissipation: {np.mean(data['Q_coolant_radiator_log']):.2f} W")
-        ax2.plot(self.time_minutes, data['Q_coolant_radiator_log'], label=f'散热器实际散热 (W)', color='orange', alpha=0.8, linestyle='-.')
+        # VVVVVV 修改这里的键名 VVVVVV
+        q_ltr_to_ambient_data = data.get('Q_LTR_to_ambient_log', []) # 使用新的键名 'Q_LTR_to_ambient_log'
+        if len(q_ltr_to_ambient_data) > 0:
+            print(f"Average Actual LTR Heat Dissipation: {np.mean(q_ltr_to_ambient_data):.2f} W")
+            ax2.plot(self.time_minutes, q_ltr_to_ambient_data, label=f'LTR实际散热 (W)', color='orange', alpha=0.8, linestyle='-.') # 更新标签
+        else:
+            print("Warning: 'Q_LTR_to_ambient_log' not found or empty in prepared_data.")
+        # ^^^^^^ 修改这里的键名 ^^^^^^
         
         ax2.set_ylabel('功率 (W)', color='gray', fontsize=self.common_settings['axis_label_fs'])
         ax2.tick_params(axis='y', labelcolor='gray', labelsize=self.common_settings['tick_label_fs'])
-        min_power_y2 = 0
-        max_power_y2 = max(np.max(data['P_comp_elec_profile']) if len(data['P_comp_elec_profile'])>0 else 0,
-                           np.max(data['Q_coolant_radiator_log']) if len(data['Q_coolant_radiator_log'])>0 else 0)
-        ax2.set_ylim(min_power_y2, max_power_y2 * 1.1 if max_power_y2 > 0 else 100)
+        
+        max_p_comp = np.max(p_comp_elec_data) if len(p_comp_elec_data) > 0 else 0
+        max_q_ltr = np.max(q_ltr_to_ambient_data) if len(q_ltr_to_ambient_data) > 0 else 0
+        max_power_y2 = max(max_p_comp, max_q_ltr)
+        ax2.set_ylim(0, max_power_y2 * 1.1 if max_power_y2 > 0 else 100) # 最小Y轴值为0
 
         lines, labels = ax1.get_legend_handles_labels()
         lines2, labels2 = ax2.get_legend_handles_labels()
         ax2.legend(lines + lines2, labels + labels2, loc='best', fontsize=self.common_settings['legend_font_size'])
 
-        plt.title('制冷系统运行状态、散热器效能及相关功率', fontsize=self.common_settings['title_fs'])
+        plt.title(chart_title, fontsize=self.common_settings['title_fs']) # 使用更新后的图表标题
         plt.tight_layout()
         filename = os.path.join(self.output_dir, "plot_cooling_system_operation.png")
         plt.savefig(filename, dpi=self.common_settings['dpi'])
         plt.close(fig)
-        print(f"Saved: {filename}")#输出保存图片名称
+        print(f"Saved: {filename}")
         print("Finished----------------------------------------------------\n")
 
     def plot_vehicle_speed(self):
@@ -400,28 +424,48 @@ class SimulationPlotter:
         Plots actual cabin cooling power and prints its average value.
         """
         plt.figure(figsize=self.common_settings['figure_size'])
-        Q_cabin_evap_log = self.prepared_data['Q_cabin_evap_log']
+        # VVVVVV 修改这里的键名 VVVVVV
+        Q_cabin_evap_log = self.prepared_data.get('Q_cabin_evap_cooling_log', []) # 使用新的键名并添加 .get()
+        # ^^^^^^ 修改这里的键名 ^^^^^^
         chart_title = '座舱实际制冷功率变化'
         print("\nStart---------------------------------------------------")
         print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
         print("--- Average Values for Cabin Cooling Power Plot ---")
+        
         if len(Q_cabin_evap_log) > 0:
             print(f"Average Cabin Evaporator Cooling Power: {np.mean(Q_cabin_evap_log):.2f} W")
-        
-        plt.plot(self.time_minutes, Q_cabin_evap_log, label='座舱蒸发器制冷功率 (W)', color='teal', drawstyle='steps-post')
+            plt.plot(self.time_minutes, Q_cabin_evap_log, label='座舱蒸发器制冷功率 (W)', color='teal', drawstyle='steps-post')
+        else:
+            print("Warning: 'Q_cabin_evap_cooling_log' not found or empty in prepared_data. Plot will be empty.")
+            # 绘制一个空图或占位符，如果需要
+            plt.plot([], [], label='座舱蒸发器制冷功率 (W) (无数据)', color='teal', drawstyle='steps-post')
+
+
         plt.ylabel('座舱制冷功率 (W)', fontsize=self.common_settings['axis_label_fs'])
         plt.xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
         plt.xticks(fontsize=self.common_settings['tick_label_fs'])
         plt.yticks(fontsize=self.common_settings['tick_label_fs'])
         plt.xlim(left=0, right=self.sim_params['sim_duration']/60)
-        if 'cabin_cooling_power_levels' in self.sim_params:
-            min_power_val = 0
-            max_power_val = max(self.sim_params['cabin_cooling_power_levels']) if self.sim_params['cabin_cooling_power_levels'] else 100
-            plt.ylim(min_power_val - 0.1 * abs(max_power_val) if max_power_val != 0 else -100 , max_power_val + 0.1 * max_power_val + 100)
-        else:
-            max_evap_power = np.max(Q_cabin_evap_log) if len(Q_cabin_evap_log)>0 else 0
-            plt.ylim(0, max_evap_power * 1.1 if max_evap_power > 0 else 100)
+        
+        min_power_val = 0
+        max_power_val = 0
+        if 'cabin_cooling_power_levels' in self.sim_params and self.sim_params['cabin_cooling_power_levels']:
+            # min_power_val = min(self.sim_params['cabin_cooling_power_levels']) # 如果允许负功率
+            max_power_val = max(self.sim_params['cabin_cooling_power_levels'])
+        elif len(Q_cabin_evap_log) > 0:
+             # min_power_val = np.min(Q_cabin_evap_log) # 如果允许负功率
+             max_power_val = np.max(Q_cabin_evap_log)
+        
+        # 确保 Y 轴范围合理
+        if max_power_val > 0 :
+            plt.ylim(min_power_val - 0.1 * abs(max_power_val) if min_power_val < 0 else 0 , max_power_val * 1.1 + 100)
+        elif max_power_val == 0 and min_power_val == 0 and len(Q_cabin_evap_log) > 0 : # 如果数据全为0
+             plt.ylim(-100, 100)
+        else: # 默认范围或无数据的情况
+            plt.ylim(0, 1000)
+
+
         plt.title('座舱实际制冷功率变化', fontsize=self.common_settings['title_fs'])
         plt.grid(True)
         plt.legend(loc='best', fontsize=self.common_settings['legend_font_size'])
@@ -593,30 +637,71 @@ class SimulationPlotter:
         plt.figure(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
 
+        # 总热负荷功率的计算保持不变
         Q_total_heat_load = data['Q_gen_motor_profile'] + data['Q_gen_inv_profile'] + \
                             data['Q_gen_batt_profile'] + data['Q_cabin_load_profile']
-        Q_total_heat_rejection = data['Q_coolant_radiator_log'] + \
-                                 data['Q_powertrain_chiller_log'] + data['Q_cabin_evap_log']
+
+        # VVVVVV  修改这里的总散热计算 VVVVVV
+        # 总散热系统散热功率 = LTR排向环境的热量 + Chiller从冷却液吸收的热量 + 座舱蒸发器吸收的热量
+        # 注意：这里的定义是 “系统从车辆内部移除的热量总和”
+        # LTR 直接排热到环境是散热。
+        # Chiller 和座舱蒸发器是从对应部件/区域吸热，这部分热量最终会通过LCC传递给冷却液，再由LTR排到环境。
+        # 因此，一种定义 “总散热系统散热功率” 的方式是看最终有多少热量被排到环境中。
+        # 在我们的新系统中，只有 LTR 直接与环境换热。
+        # Q_total_heat_rejection_to_env = data.get('Q_LTR_to_ambient_log', np.array([0]*len(self.time_minutes))) # 直接排环境
+        
+        # 另一种定义：系统总的吸热能力 (LTR排热 + Chiller吸热 + 座舱蒸发器吸热)
+        # 这个定义更符合图表标题 “总散热系统散热功率” 的字面意思，即系统内部各散热/制冷部件的工作功率总和。
+        q_ltr = data.get('Q_LTR_to_ambient_log', np.zeros_like(self.time_minutes))
+        q_chiller = data.get('Q_coolant_to_chiller_log', np.zeros_like(self.time_minutes))
+        q_cabin_evap = data.get('Q_cabin_evap_cooling_log', np.zeros_like(self.time_minutes))
+
+        # 确保所有数组长度一致
+        min_len = min(len(q_ltr), len(q_chiller), len(q_cabin_evap))
+        q_ltr = q_ltr[:min_len]
+        q_chiller = q_chiller[:min_len]
+        q_cabin_evap = q_cabin_evap[:min_len]
+        
+        Q_total_heat_rejection_system_effort = q_ltr + q_chiller + q_cabin_evap
+        # ^^^^^^  修改这里的总散热计算 ^^^^^^
+
+
         print("\nStart---------------------------------------------------")
         
         if len(Q_total_heat_load) > 0:
-            print(f"Average Total Heat Load: {np.mean(Q_total_heat_load):.2f} W")
-        plt.plot(self.time_minutes, Q_total_heat_load, label='总热负荷功率 (W)', color='maroon', linestyle='-')
+            # 确保 Q_total_heat_load 与 Q_total_heat_rejection_system_effort 长度一致
+            Q_total_heat_load_plot = Q_total_heat_load[:min_len]
+            print(f"Average Total Heat Load: {np.mean(Q_total_heat_load_plot):.2f} W")
+            plt.plot(self.time_minutes[:min_len], Q_total_heat_load_plot, label='总热负荷功率 (W)', color='maroon', linestyle='-')
+        else:
+            Q_total_heat_load_plot = np.array([]) # 防止后续引用错误
+
         chart_title = '总热负荷功率 vs 总散热系统散热功率'
         print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
         print("--- Average Values for Total Heat Balance Plot ---")
-        if len(Q_total_heat_rejection) > 0:
-            print(f"Average Total Heat Rejection: {np.mean(Q_total_heat_rejection):.2f} W")
-        plt.plot(self.time_minutes, Q_total_heat_rejection, label='总散热系统散热功率 (W)', color='darkcyan', linestyle='--')
+
+        # VVVVVV  以及这里绘制的部分 VVVVVV
+        if len(Q_total_heat_rejection_system_effort) > 0 and np.any(Q_total_heat_rejection_system_effort): # 检查是否全为0
+            print(f"Average Total Heat Rejection (System Effort): {np.mean(Q_total_heat_rejection_system_effort):.2f} W")
+            plt.plot(self.time_minutes[:min_len], Q_total_heat_rejection_system_effort, label='总散热系统移除功率 (W)', color='darkcyan', linestyle='--')
+        else:
+            print("Warning: Total heat rejection data is empty or all zeros. Line will not be plotted.")
+        # ^^^^^^  以及这里绘制的部分 ^^^^^^
 
         plt.xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
         plt.ylabel('功率 (W)', fontsize=self.common_settings['axis_label_fs'])
         plt.xticks(fontsize=self.common_settings['tick_label_fs'])
         plt.yticks(fontsize=self.common_settings['tick_label_fs'])
-        plt.xlim(left=0, right=self.sim_params['sim_duration']/60)
-        max_load_val = np.max(Q_total_heat_load) if len(Q_total_heat_load) > 0 else 0
-        max_rejection_val = np.max(Q_total_heat_rejection) if len(Q_total_heat_rejection) > 0 else 0
+        
+        # Ensure xlim uses the potentially shortened time_minutes
+        current_xlim_right = self.sim_params['sim_duration']/60
+        if min_len < len(self.time_minutes) and min_len > 0:
+            current_xlim_right = self.time_minutes[min_len-1]
+        plt.xlim(left=0, right=current_xlim_right)
+
+        max_load_val = np.max(Q_total_heat_load_plot) if len(Q_total_heat_load_plot) > 0 else 0
+        max_rejection_val = np.max(Q_total_heat_rejection_system_effort) if len(Q_total_heat_rejection_system_effort) > 0 else 0
         overall_max_power = max(max_load_val, max_rejection_val)
         plt.ylim(0, overall_max_power * 1.1 if overall_max_power > 0 else 100)
 
