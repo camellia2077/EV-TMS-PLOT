@@ -112,7 +112,8 @@ class SimulationPlotter:
         prepared_data['Q_coolant_to_chiller_log'] = _ensure(self.cooling_system_logs_raw.get('Q_coolant_to_chiller', np.array([])), n_total_points) # 更新的键
         # 座舱蒸发器吸收的热量
         prepared_data['Q_cabin_evap_cooling_log'] = _ensure(self.cooling_system_logs_raw.get('Q_cabin_evap_cooling', np.array([])), n_total_points) # 更新的键
-
+        # --- 添加这行来处理 LTR 效能因子 ---
+        prepared_data['LTR_effectiveness_log'] = _ensure(self.cooling_system_logs_raw.get('LTR_effectiveness_factor_equiv', np.array([])), n_total_points)
         # Ensure ac_power_log_raw is an array before passing to _ensure
         ac_power_log_data = self.ac_power_log_raw if isinstance(self.ac_power_log_raw, np.ndarray) else np.array(self.ac_power_log_raw)
         prepared_data['P_comp_elec_profile'] = _ensure(ac_power_log_data, n_total_points)
@@ -141,28 +142,30 @@ class SimulationPlotter:
         print("\nStart----------------------------------------------------")
         print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
-        print("--- Average Values for Temperature Plot ---")
 
-        if len(data['T_motor']) > 0:
-            print(f"Average Motor Temperature: {np.mean(data['T_motor']):.2f} °C")
         ax_temp.plot(self.time_minutes, data['T_motor'], label='电机温度 (°C)', color='blue')
 
-        if len(data['T_inv']) > 0:
-            print(f"Average Inverter Temperature: {np.mean(data['T_inv']):.2f} °C")
+
         ax_temp.plot(self.time_minutes, data['T_inv'], label='逆变器温度 (°C)', color='orange')
 
-        if len(data['T_batt']) > 0:
-            print(f"Average Battery Temperature: {np.mean(data['T_batt']):.2f} °C")
+        
         ax_temp.plot(self.time_minutes, data['T_batt'], label='电池温度 (°C)', color='green')
 
-        if len(data['T_cabin']) > 0:
-            print(f"Average Cabin Temperature: {np.mean(data['T_cabin']):.2f} °C")
+        
         ax_temp.plot(self.time_minutes, data['T_cabin'], label='座舱温度 (°C)', color='red')
 
-        if len(data['T_coolant']) > 0:
-            print(f"Average Coolant Temperature: {np.mean(data['T_coolant']):.2f} °C")
         ax_temp.plot(self.time_minutes, data['T_coolant'], label='冷却液温度 (°C)', color='purple', alpha=0.6)
-
+        # --- 添加计算和打印平均值的代码 ---
+        if len(data['T_motor']) > 0:
+            print(f"平均电机温度: {np.mean(data['T_motor']):.2f} °C")
+        if len(data['T_inv']) > 0:
+            print(f"平均逆变器温度: {np.mean(data['T_inv']):.2f} °C")
+        if len(data['T_batt']) > 0:
+            print(f"平均电池温度: {np.mean(data['T_batt']):.2f} °C")
+        if len(data['T_cabin']) > 0:
+            print(f"平均座舱温度: {np.mean(data['T_cabin']):.2f} °C")
+        if len(data['T_coolant']) > 0:
+            print(f"平均冷却液温度: {np.mean(data['T_coolant']):.2f} °C")
         self.all_extrema_data['电机'] = self._plot_local_extrema(ax_temp, self.time_minutes, data['T_motor'], 'blue', '电机', self.extrema_text_fontsize)
         self.all_extrema_data['逆变器'] = self._plot_local_extrema(ax_temp, self.time_minutes, data['T_inv'], 'orange', '逆变器', self.extrema_text_fontsize)
         self.all_extrema_data['电池'] = self._plot_local_extrema(ax_temp, self.time_minutes, data['T_batt'], 'green', '电池', self.extrema_text_fontsize)
