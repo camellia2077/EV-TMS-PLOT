@@ -130,14 +130,17 @@ class SimulationPlotter:
         return prepared_data
 
     def plot_temperatures(self):
-        """Plots component temperatures and prints their average values."""
+        """
+        部件估算温度
+        Plots component temperatures and prints their average values.
+        """
         fig_temp, ax_temp = plt.subplots(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
         chart_title = f'部件估算温度 (环境={self.sim_params["T_ambient"]}°C, COP={self.cop_value:.2f})' # 这是图表的标题
-
-        print(f"\n--- 图表: {chart_title} ---") # <--- 在这里使用图表标题
-        print("--- 以下为此图表内各项数据的平均值 ---") # <--- 新增提示信息
-        print("\n--- Average Values for Temperature Plot ---")
+        print("\nStart----------------------------------------------------")
+        print(f"--- 图表: {chart_title} ---")
+        print("--- 以下为此图表内各项数据的平均值 ---")
+        print("--- Average Values for Temperature Plot ---")
 
         if len(data['T_motor']) > 0:
             print(f"Average Motor Temperature: {np.mean(data['T_motor']):.2f} °C")
@@ -158,7 +161,6 @@ class SimulationPlotter:
         if len(data['T_coolant']) > 0:
             print(f"Average Coolant Temperature: {np.mean(data['T_coolant']):.2f} °C")
         ax_temp.plot(self.time_minutes, data['T_coolant'], label='冷却液温度 (°C)', color='purple', alpha=0.6)
-        print("----------------------------------------")
 
         self.all_extrema_data['电机'] = self._plot_local_extrema(ax_temp, self.time_minutes, data['T_motor'], 'blue', '电机', self.extrema_text_fontsize)
         self.all_extrema_data['逆变器'] = self._plot_local_extrema(ax_temp, self.time_minutes, data['T_inv'], 'orange', '逆变器', self.extrema_text_fontsize)
@@ -209,17 +211,19 @@ class SimulationPlotter:
         plt.savefig(filename, dpi=self.common_settings['dpi'])
         plt.close(fig_temp)
         print(f"Saved: {filename}")
+        print("Finished----------------------------------------------------\n")
 
     def plot_cooling_system_operation(self):
-        """Plots cooling system operation status and related powers, and prints their average values."""
+        """
+        制冷系统运行状态、散热器效能及相关功率
+        Plots cooling system operation status and related powers, and prints their average values.
+        """
         fig, ax1 = plt.subplots(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
-        # --- 新增/修改代码 开始 ---
         chart_title = '制冷系统运行状态、散热器效能及相关功率'
-        print(f"\n--- 图表: {chart_title} ---")
+        print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
-
-        print("\n--- Average Values for Cooling System Operation Plot ---")
+        print("--- Average Values for Cooling System Operation Plot ---")
         if len(data['chiller_active_log']) > 0:
             print(f"Average Powertrain Chiller Status: {np.mean(data['chiller_active_log']):.2f} (1=ON)")
         ax1.plot(self.time_minutes, data['chiller_active_log'], label='动力总成Chiller状态 (1=ON)', color='black', drawstyle='steps-post', alpha=0.7)
@@ -243,7 +247,6 @@ class SimulationPlotter:
         if len(data['Q_coolant_radiator_log']) > 0:
             print(f"Average Actual Radiator Heat Dissipation: {np.mean(data['Q_coolant_radiator_log']):.2f} W")
         ax2.plot(self.time_minutes, data['Q_coolant_radiator_log'], label=f'散热器实际散热 (W)', color='orange', alpha=0.8, linestyle='-.')
-        print("----------------------------------------------------")
         
         ax2.set_ylabel('功率 (W)', color='gray', fontsize=self.common_settings['axis_label_fs'])
         ax2.tick_params(axis='y', labelcolor='gray', labelsize=self.common_settings['tick_label_fs'])
@@ -261,21 +264,23 @@ class SimulationPlotter:
         filename = os.path.join(self.output_dir, "plot_cooling_system_operation.png")
         plt.savefig(filename, dpi=self.common_settings['dpi'])
         plt.close(fig)
-        print(f"Saved: {filename}")
+        print(f"Saved: {filename}")#输出保存图片名称
+        print("Finished----------------------------------------------------\n")
 
     def plot_vehicle_speed(self):
-        """Plots vehicle speed profile and prints its average value."""
+        """
+        车辆速度变化曲线
+        Plots vehicle speed profile and prints its average value.
+        """
         plt.figure(figsize=self.common_settings['figure_size'])
         v_vehicle_profile = self.prepared_data['v_vehicle_profile']
-        # --- 新增/修改代码 开始 ---
+        print("\nStart---------------------------------------------------")
         chart_title = f'车辆速度变化曲线 ({self.sim_params.get("v_start", "N/A")}到{self.sim_params.get("v_end","N/A")}km/h)'
-        print(f"\n--- 图表: {chart_title} ---")
+        print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
-
-        print("\n--- Average Values for Vehicle Speed Plot ---")
+        print("--- Average Values for Vehicle Speed Plot ---")
         if len(v_vehicle_profile) > 0:
             print(f"Average Vehicle Speed: {np.mean(v_vehicle_profile):.2f} km/h")
-        print("-------------------------------------------")
         
         plt.plot(self.time_minutes, v_vehicle_profile, label='车速 (km/h)', color='magenta')
         plt.ylabel('车速 (km/h)', fontsize=self.common_settings['axis_label_fs'])
@@ -293,19 +298,24 @@ class SimulationPlotter:
         filename = os.path.join(self.output_dir, "plot_vehicle_speed.png")
         plt.savefig(filename, dpi=self.common_settings['dpi'])
         plt.close()
-        print(f"Saved: {filename}")
+        print(f"Saved: {filename}")#输出保存图片名称
+        print("Finished----------------------------------------------------\n")
 
     def plot_powertrain_heat_generation(self):
-        """Plots powertrain component heat generation and prints their average values."""
+        """
+        动力总成部件产热功率
+        Plots powertrain component heat generation and prints their average values.
+        """
         plt.figure(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
         Q_gen_motor_profile = data['Q_gen_motor_profile']
         Q_gen_inv_profile = data['Q_gen_inv_profile']
         Q_gen_batt_profile = data['Q_gen_batt_profile']
         chart_title = '动力总成部件产热功率'
-        print(f"\n--- 图表: {chart_title} ---")
+        print("\nStart---------------------------------------------------")
+        print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
-        print("\n--- Average Values for Powertrain Heat Generation Plot ---")
+        print("--- Average Values for Powertrain Heat Generation Plot ---")
         if len(Q_gen_motor_profile) > 0:
             print(f"Average Motor Heat Generation: {np.mean(Q_gen_motor_profile):.2f} W")
         plt.plot(self.time_minutes, Q_gen_motor_profile, label='电机产热 (W)', color='blue', alpha=0.8)
@@ -317,8 +327,8 @@ class SimulationPlotter:
         if len(Q_gen_batt_profile) > 0:
             print(f"Average Battery Heat Generation: {np.mean(Q_gen_batt_profile):.2f} W")
         plt.plot(self.time_minutes, Q_gen_batt_profile, label='电池产热 (W)', color='green', alpha=0.8)
-        print("--------------------------------------------------------")
-        
+
+    
         plt.ylabel('产热功率 (W)', fontsize=self.common_settings['axis_label_fs'])
         plt.xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
         plt.xticks(fontsize=self.common_settings['tick_label_fs'])
@@ -336,18 +346,23 @@ class SimulationPlotter:
         plt.savefig(filename, dpi=self.common_settings['dpi'])
         plt.close()
         print(f"Saved: {filename}")
+        print("Finished----------------------------------------------------\n")
 
     def plot_battery_power(self):
-        """Plots battery power output breakdown and prints their average values."""
+        """
+        电池输出功率分解
+        Plots battery power output breakdown and prints their average values.
+        """
         plt.figure(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
         P_inv_in_profile = data['P_inv_in_profile']
         P_comp_elec_profile = data['P_comp_elec_profile'] # Already printed in cooling_system_operation
         P_elec_total_profile = data['P_elec_total_profile']
         chart_title = '电池输出功率分解'
-        print(f"\n--- 图表: {chart_title} ---")
+        print("\nStart---------------------------------------------------")
+        print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
-        print("\n--- Average Values for Battery Power Plot ---")
+        print("--- Average Values for Battery Power Plot ---")
         if len(P_inv_in_profile) > 0:
             print(f"Average Drive Power (Inverter Input): {np.mean(P_inv_in_profile):.2f} W")
         plt.plot(self.time_minutes, P_inv_in_profile, label='驱动用电功率 (逆变器输入 W)', color='brown', alpha=0.7)
@@ -361,7 +376,6 @@ class SimulationPlotter:
         if len(P_elec_total_profile) > 0:
             print(f"Average Total Battery Output Power: {np.mean(P_elec_total_profile):.2f} W")
         plt.plot(self.time_minutes, P_elec_total_profile, label='总电池输出功率 (W)', color='green', linestyle='-')
-        print("-----------------------------------------")
         
         plt.xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
         plt.ylabel('功率 (W)', fontsize=self.common_settings['axis_label_fs'])
@@ -378,18 +392,22 @@ class SimulationPlotter:
         plt.savefig(filename, dpi=self.common_settings['dpi'])
         plt.close()
         print(f"Saved: {filename}")
+        print("Finished----------------------------------------------------\n")
 
     def plot_cabin_cooling_power(self):
-        """Plots actual cabin cooling power and prints its average value."""
+        """
+        座舱实际制冷功率变化
+        Plots actual cabin cooling power and prints its average value.
+        """
         plt.figure(figsize=self.common_settings['figure_size'])
         Q_cabin_evap_log = self.prepared_data['Q_cabin_evap_log']
         chart_title = '座舱实际制冷功率变化'
-        print(f"\n--- 图表: {chart_title} ---")
+        print("\nStart---------------------------------------------------")
+        print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
-        print("\n--- Average Values for Cabin Cooling Power Plot ---")
+        print("--- Average Values for Cabin Cooling Power Plot ---")
         if len(Q_cabin_evap_log) > 0:
             print(f"Average Cabin Evaporator Cooling Power: {np.mean(Q_cabin_evap_log):.2f} W")
-        print("-------------------------------------------------")
         
         plt.plot(self.time_minutes, Q_cabin_evap_log, label='座舱蒸发器制冷功率 (W)', color='teal', drawstyle='steps-post')
         plt.ylabel('座舱制冷功率 (W)', fontsize=self.common_settings['axis_label_fs'])
@@ -412,9 +430,13 @@ class SimulationPlotter:
         plt.savefig(filename, dpi=self.common_settings['dpi'])
         plt.close()
         print(f"Saved: {filename}")
+        print("Finished----------------------------------------------------\n")
 
     def plot_temp_vs_speed_accel(self):
-        """Plots temperatures vs. vehicle speed during acceleration phase and prints their average values."""
+        """
+        加速阶段部件温度随车速变化轨迹
+        Plots temperatures vs. vehicle speed during acceleration phase and prints their average values.
+        """
         plt.figure(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
         ramp_up_time_sec = self.sim_params.get('ramp_up_time_sec', 0)
@@ -423,9 +445,10 @@ class SimulationPlotter:
         max_possible_index = len(data['v_vehicle_profile']) -1
         ramp_up_index = min(ramp_up_steps, max_possible_index)
         chart_title = f'加速阶段部件温度随车速变化轨迹 ({self.sim_params.get("v_start", "N/A")}到{self.sim_params.get("v_end","N/A")} km/h)'
-        print(f"\n--- 图表: {chart_title} ---")
+        print("\nStart---------------------------------------------------")
+        print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 (加速阶段) ---")
-        print("\n--- Average Values for Temperature vs. Speed (Acceleration) Plot ---")
+        print("--- Average Values for Temperature vs. Speed (Acceleration) Plot ---")
         if ramp_up_index > 0 and len(data['v_vehicle_profile']) > ramp_up_index :
             v_accel = data['v_vehicle_profile'][0:ramp_up_index + 1]
             T_motor_accel = data['T_motor'][0:ramp_up_index + 1]
@@ -484,21 +507,25 @@ class SimulationPlotter:
             filename = os.path.join(self.output_dir, "plot_temp_vs_speed_accel.png")
             plt.savefig(filename, dpi=self.common_settings['dpi'])
             plt.close()
-            print(f"Saved: {filename}")
+            print(f"Saved: {filename}")#输出保存图片名称
+            print("Finished----------------------------------------------------\n")
         else:
             print("Warning: No or insufficient acceleration phase data to generate plot_temp_vs_speed_accel and print averages.")
-        print("--------------------------------------------------------------------")
 
     def plot_temp_at_const_speed(self):
-        """Plots temperatures during constant speed phase and prints their average values."""
+        """
+        部件温度变化
+        Plots temperatures during constant speed phase and prints their average values.
+        """
         plt.figure(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
         ramp_up_steps = int(self.sim_params['ramp_up_time_sec'] / self.sim_params.get('dt', 1)) if self.sim_params.get('dt', 1) > 0 else 0
         const_speed_start_index = min(ramp_up_steps + 1, len(self.time_minutes))
         chart_title = f'部件温度变化 (匀速 {self.sim_params.get("v_end","N/A")} km/h 阶段)'
-        print(f"\n--- 图表: {chart_title} ---")
+        print("\nStart---------------------------------------------------")
+        print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 (匀速阶段) ---")
-        print("\n--- Average Values for Temperature at Constant Speed Plot ---")
+        print("--- Average Values for Temperature at Constant Speed Plot ---")
         if const_speed_start_index < len(self.time_minutes):
             time_const_speed_minutes = self.time_minutes[const_speed_start_index:]
 
@@ -551,14 +578,18 @@ class SimulationPlotter:
                 plt.savefig(filename, dpi=self.common_settings['dpi'])
                 plt.close()
                 print(f"Saved: {filename}")
+                print("Finished----------------------------------------------------\n")
             else:
                 print("Warning: No data points in constant speed phase for plot_temp_at_const_speed and printing averages.")
         else:
             print("Warning: No constant speed phase data found to generate plot_temp_at_const_speed and print averages.")
-        print("-----------------------------------------------------------")
+       
 
     def plot_total_heat_balance(self):
-        """Plots total heat load vs. total heat rejection and prints their average values."""
+        """
+        总热负荷功率 vs 总散热系统散热功率
+        Plots total heat load vs. total heat rejection and prints their average values.
+        """
         plt.figure(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
 
@@ -566,18 +597,18 @@ class SimulationPlotter:
                             data['Q_gen_batt_profile'] + data['Q_cabin_load_profile']
         Q_total_heat_rejection = data['Q_coolant_radiator_log'] + \
                                  data['Q_powertrain_chiller_log'] + data['Q_cabin_evap_log']
-
-        print("\n--- Average Values for Total Heat Balance Plot ---")
+        print("\nStart---------------------------------------------------")
+        
         if len(Q_total_heat_load) > 0:
             print(f"Average Total Heat Load: {np.mean(Q_total_heat_load):.2f} W")
         plt.plot(self.time_minutes, Q_total_heat_load, label='总热负荷功率 (W)', color='maroon', linestyle='-')
         chart_title = '总热负荷功率 vs 总散热系统散热功率'
-        print(f"\n--- 图表: {chart_title} ---")
+        print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
+        print("--- Average Values for Total Heat Balance Plot ---")
         if len(Q_total_heat_rejection) > 0:
             print(f"Average Total Heat Rejection: {np.mean(Q_total_heat_rejection):.2f} W")
         plt.plot(self.time_minutes, Q_total_heat_rejection, label='总散热系统散热功率 (W)', color='darkcyan', linestyle='--')
-        print("------------------------------------------------")
 
         plt.xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
         plt.ylabel('功率 (W)', fontsize=self.common_settings['axis_label_fs'])
@@ -597,18 +628,23 @@ class SimulationPlotter:
         plt.savefig(filename, dpi=self.common_settings['dpi'])
         plt.close()
         print(f"Saved: {filename}")
+        print("Finished----------------------------------------------------\n")
 
     def plot_ac_chiller_specific(self):
-        """Plots AC Compressor Power and Powertrain Chiller Status specifically, and prints their average values."""
+        """
+        空调压缩机总电耗与动力总成Chiller状态
+        Plots AC Compressor Power and Powertrain Chiller Status specifically, and prints their average values.
+        """
         fig, ax1 = plt.subplots(figsize=self.common_settings['figure_size'])
         data = self.prepared_data
         time_minutes = self.time_minutes
         max_time = np.max(time_minutes) if len(time_minutes) > 0 else 1
         ax1.set_xlim(0, max_time)
+        print("\nStart---------------------------------------------------")
         chart_title = '空调压缩机总电耗与动力总成Chiller状态'
-        print(f"\n--- 图表: {chart_title} ---")
+        print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
-        print("\n--- Average Values for AC Chiller Specific Plot ---")
+        print("--- Average Values for AC Chiller Specific Plot ---")
         
         if len(data['chiller_active_log']) > 0:
             print(f"Average Powertrain Chiller Status: {np.mean(data['chiller_active_log']):.2f} (1=ON)") # Duplicate from cooling_system_operation
@@ -625,7 +661,6 @@ class SimulationPlotter:
         if data['P_comp_elec_profile'] is not None and len(data['P_comp_elec_profile']) > 0:
             print(f"Average AC Compressor Total Electrical Power: {np.mean(data['P_comp_elec_profile']):.2f} W") # Duplicate
         ax2.plot(time_minutes, data['P_comp_elec_profile'], label='空调压缩机总电耗 (W)', color='cyan', alpha=0.8, linestyle='-')
-        print("-------------------------------------------------")
 
         ax2.set_ylabel('空调压缩机总电耗 (W)', color='cyan', fontsize=self.common_settings['axis_label_fs'])
         ax2.tick_params(axis='y', labelcolor='cyan', labelsize=self.common_settings['tick_label_fs'])
@@ -645,11 +680,13 @@ class SimulationPlotter:
         filename = os.path.join(self.output_dir, "plot_ac_chiller_specific.png")
         plt.savefig(filename, dpi=self.common_settings['dpi'])
         plt.close(fig)
-        print(f"Saved: {filename}")
+        print(f"Saved: {filename}")#输出保存图片名称
+        print("Finished----------------------------------------------------\n")
 
 
     def generate_all_plots(self):
         """
+        生成图的函数
         Generates and saves all simulation plots by calling individual plotting methods.
         Returns a dictionary of all found local extrema for relevant temperatures.
         """
