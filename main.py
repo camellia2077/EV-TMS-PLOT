@@ -43,6 +43,15 @@ def main():
 
     # --- 4. Plotting Results using SimulationPlotter class ---
     print("\n--- Plotting ---")
+
+    # 从 simulation_parameters 获取步长和持续时间
+    dt_value = sp.dt
+    sim_duration_value = sp.sim_duration
+
+    # 构建新的输出文件夹名称
+    # 例如: simulation_plots_oop_1_2100 (假设 dt=1, sim_duration=2100)
+    output_folder_name = f"simulation_plots_{dt_value}_{sim_duration_value}"
+
     plotter = SimulationPlotter(
         time_data=processed_plot_data['time_data'],
         temperatures=processed_plot_data['temperatures'],
@@ -54,7 +63,7 @@ def main():
         sim_params=processed_plot_data['sim_params_dict'], # Pass the dictionary
         cop_value=cop_value,
         cooling_system_logs=processed_plot_data['cooling_system_logs'],
-        output_dir="simulation_plots_oop",  # Optional: specify different output directory
+        output_dir=output_folder_name,  # 使用动态生成的文件夹名称
         extrema_text_fontsize=16            # Optional: specify font size for extrema
     )
     all_temperature_extrema = plotter.generate_all_plots()
