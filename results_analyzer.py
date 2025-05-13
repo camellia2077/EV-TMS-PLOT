@@ -104,16 +104,19 @@ class ResultsAnalyzer:
             print("  No powertrain chiller state transitions recorded during the simulation.")
 
     def print_temperature_extrema(self, all_temperature_extrema):
+        """打印极值点"""
         print("\n--- Local Temperature Extrema (Analyzed) ---")
         for component_name, extrema in all_temperature_extrema.items():
             if extrema['minima']:
                 print(f"\n{component_name} - 局部最低点:")
                 for time_min, temp_c in extrema['minima']:
-                    print(f"  时间: {time_min:.2f} 分钟, 温度: {temp_c:.2f} °C")
+                    pass
+                    #print(f"  时间: {time_min:.2f} 分钟, 温度: {temp_c:.2f} °C")
             if extrema['maxima']:
                 print(f"\n{component_name} - 局部最高点:")
                 for time_min, temp_c in extrema['maxima']:
-                    print(f"  时间: {time_min:.2f} 分钟, 温度: {temp_c:.2f} °C")
+                    pass
+                    #print(f"  时间: {time_min:.2f} 分钟, 温度: {temp_c:.2f} °C")
 
     def print_average_values(self):
         print("\n--- 各项数据平均值 ---")
