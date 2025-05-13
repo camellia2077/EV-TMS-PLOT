@@ -96,4 +96,5 @@ def Q_batt_func(p_elec_total, u_batt, r_int):
     float: 电池的产热功率 (W)。
     """
     I_batt = p_elec_total / u_batt # 计算电池电流 I_batt = P_elec_total / U_batt(A)
-    return (I_batt**2) * r_int
+    Q_heat_batt = (I_batt**2) * r_int# 
+    return Q_heat_batt

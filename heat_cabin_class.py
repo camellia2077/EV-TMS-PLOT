@@ -1,4 +1,5 @@
-# heat_cabin_class.py (假设的修正版本)
+# heat_cabin_class.py
+# 计算各部件和座舱温度变化率
 
 def rho_air_func(t):
     """计算给定温度下的空气密度。"""
