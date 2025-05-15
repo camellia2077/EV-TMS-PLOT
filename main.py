@@ -6,7 +6,6 @@ import refrigeration_cycle as rc
 from simulation_engine import SimulationEngine
 from results_analyzer import ResultsAnalyzer
 from plotting import SimulationPlotter
-import io
 import sys
 import os
 

@@ -174,32 +174,10 @@ class SimulationPlotter:
 
         ax_temp.axhline(self.sim_params['T_motor_target'], color='blue', linestyle='--', alpha=0.7, label=f'电机目标 ({self.sim_params["T_motor_target"]}°C)')
         ax_temp.axhline(self.sim_params['T_inv_target'], color='orange', linestyle='--', alpha=0.7, label=f'逆变器目标 ({self.sim_params["T_inv_target"]}°C)')
-        ax_temp.axhline(self.sim_params['T_batt_target_high'], color='green', linestyle='--', alpha=0.7, label=f'电池制冷启动 ({self.sim_params["T_batt_target_high"]}°C)')
-        if 'T_batt_stop_cool' in self.sim_params:
-            ax_temp.axhline(self.sim_params['T_batt_stop_cool'], color='green', linestyle=':', alpha=0.7, label=f'电池制冷停止 ({self.sim_params["T_batt_stop_cool"]:.1f}°C)')
+        #ax_temp.axhline(self.sim_params['T_batt_target_high'], color='green', linestyle='--', alpha=0.7, label=f'电池制冷启动 ({self.sim_params["T_batt_target_high"]}°C)')
+        #if 'T_batt_stop_cool' in self.sim_params:
+        #    ax_temp.axhline(self.sim_params['T_batt_stop_cool'], color='green', linestyle=':', alpha=0.7, label=f'电池制冷停止 ({self.sim_params["T_batt_stop_cool"]:.1f}°C)')
         ax_temp.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
-
-        if 'cabin_cooling_temp_thresholds' in self.sim_params and 'cabin_cooling_power_levels' in self.sim_params:
-            thresholds = self.sim_params['cabin_cooling_temp_thresholds']
-            levels = self.sim_params['cabin_cooling_power_levels']
-            plotted_threshold_labels = set()
-            for idx, temp_thresh in enumerate(thresholds):
-                label_text = None
-                if levels[idx] > 0 and temp_thresh < 99:
-                    if idx > 0 and levels[idx-1] == 0:
-                        label_text = f'座舱启动P({levels[idx]}W)@{thresholds[idx-1]}-{temp_thresh}°C'
-                    elif idx == 0 and levels[idx] > 0 :
-                        label_text = f'座舱P({levels[idx]}W)至{temp_thresh}°C'
-                    elif idx > 0 and levels[idx] > 0 and levels[idx] != levels[idx-1]:
-                        label_text = f'座舱升档P({levels[idx]}W)@{thresholds[idx-1]}-{temp_thresh}°C'
-                elif idx == 0 and levels[idx] == 0 and len(thresholds) > 1:
-                     label_text = f'座舱OFF至{temp_thresh}°C'
-
-                if label_text and label_text not in plotted_threshold_labels:
-                    ax_temp.axhline(temp_thresh, color='salmon', linestyle=':', alpha=0.4, label=label_text)
-                    plotted_threshold_labels.add(label_text)
-                elif temp_thresh < 99 and not label_text :
-                    ax_temp.axhline(temp_thresh, color='salmon', linestyle=':', alpha=0.4)
 
         ax_temp.axhline(self.sim_params['T_ambient'], color='grey', linestyle=':', alpha=0.7, label=f'环境温度 ({self.sim_params["T_ambient"]}°C)')
         ax_temp.set_ylabel('温度 (°C)', fontsize=self.common_settings['axis_label_fs'])
@@ -235,14 +213,13 @@ class SimulationPlotter:
         else:
             print("Warning: 'chiller_active_log' not found or empty in prepared_data.")
 
-        # VVVVVV 修改这里的键名 VVVVVV
-        ltr_effectiveness_data = data.get('LTR_effectiveness_log', []) # 使用新的键名 'LTR_effectiveness_log'
-        if len(ltr_effectiveness_data) > 0:
-            print(f"Average LTR Effectiveness Factor: {np.mean(ltr_effectiveness_data):.2f}")
-            ax1.plot(self.time_minutes, ltr_effectiveness_data, label=f'LTR效能因子 (UA_eff/UA_max)', color='brown', drawstyle='steps-post', linestyle='--', alpha=0.7) # 更新标签
-        else:
-            print("Warning: 'LTR_effectiveness_log' not found or empty in prepared_data.")
-        # ^^^^^^ 修改这里的键名 ^^^^^^
+        # LTR效能因子
+        #ltr_effectiveness_data = data.get('LTR_effectiveness_log', []) # 使用新的键名
+        #if len(ltr_effectiveness_data) > 0:
+        #    print(f"Average LTR Effectiveness Factor: {np.mean(ltr_effectiveness_data):.2f}")
+        #    ax1.plot(self.time_minutes, ltr_effectiveness_data, label=f'LTR效能因子 (UA_eff/UA_max)', color='brown', drawstyle='steps-post', linestyle='--', alpha=0.7) # 更新标签
+        #else:
+        #    print("Warning: 'LTR_effectiveness_log' not found or empty in prepared_data.")
         
         ax1.set_xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
         ax1.set_ylabel('状态 / LTR风扇功率 (W)', fontsize=self.common_settings['axis_label_fs']) # 更新Y轴标签

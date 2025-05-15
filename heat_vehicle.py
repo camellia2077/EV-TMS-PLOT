@@ -50,42 +50,38 @@ def P_wheel_func(v_kmh, m, T_amb):
     force_total = force_aero + force_roll#总行驶阻力 (不考虑坡度阻力及加速阻力)(单位: N)
     v_mps = v_kmh / 3.6# 将车速从 千米/小时 (km/h) 转换为 米/秒 (m/s)
     return force_total * v_mps# 功率(W) P = F * v (力乘以速度)
-def P_motor_func(p_wheel, eta_m):
+def P_motor_func(p_wheel, motor_eta):
     """
     计算电机输入功率。
     参数:
     p_wheel (float): 车轮处的驱动功率需求(W)。
-    eta_m (float): 电机的效率。
+    motor_eta (float): 电机的效率。
     返回:
     float: 电机的输入功率(W)。
     """
-    return p_wheel / eta_m
-def Q_mot_func(p_motor_in, eta_m):
+    return p_wheel / motor_eta
+def Q_mot_func(p_motor_in, motor_eta):
     """
     计算电机的产热功率。
     参数:
     p_motor_in (float): 电机的输入功率(W)。
-    eta_m (float): 电机的效率。
+    motor_eta (float): 电机的效率。
     返回:
     float: 电机的产热功率 (W)。
     """
-    return p_motor_in * (1 - eta_m)# 电机产热功率 Q_motor = P_motor_in * (1 - eta_m)
+    return p_motor_in * (1 - motor_eta)# 电机产热功率 Q_motor = P_motor_in * (1 - motor_eta)
 
 def Q_inv_func(p_motor_in, eta_inv):
     """
     计算逆变器的产热功率。
     参数:
-    p_motor_in: 电机的输入功率 (也是逆变器的大致输出功率) (单 W)。
-    eta_inv  逆变器的效率。
+    p_motor_in: 电机的输入功率 (也是逆变器的输出功率) (单 W)。
+    eta_inv   逆变器的效率。
     返回:
     逆变器的产热功率 ( W)。
     """
-    # 首先计算逆变器的输入功率 P_inv_in = P_motor_in / eta_inv
-    # P_motor_in 是逆变器的输出功率
-    p_inv_in = p_motor_in / eta_inv
-    # 逆变器产热功率 Q_inv = P_inv_in * (1 - eta_inv)
-    return p_inv_in * (1 - eta_inv)
-def Q_batt_func(p_elec_total, u_batt, r_int):
+    return p_motor_in * (1 - eta_inv) / eta_inv
+def Q_batt_func(p_motor, u_batt, r_int):
     """
     计算电池的产热功率。
     参数:
@@ -95,6 +91,7 @@ def Q_batt_func(p_elec_total, u_batt, r_int):
     返回:
     float: 电池的产热功率 (W)。
     """
-    I_batt = p_elec_total / u_batt # 计算电池电流 I_batt = P_elec_total / U_batt(A)
+    I_batt = p_motor / u_batt # 计算电池电流 I_batt = P_elec_total / U_batt(A)
     Q_heat_batt = (I_batt**2) * r_int# 
     return Q_heat_batt
+

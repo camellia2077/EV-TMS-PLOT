@@ -12,7 +12,7 @@ class CabinHeatCalculator:
     def __init__(self, N_passengers, v_air_internal_mps, A_body, R_body,
                  A_glass, R_glass, SHGC, A_glass_sun, W_out_summer, W_in_target,
                  fraction_fresh_air, cp_air=1005, h_fg=2.45e6,
-                 Q_powertrain=50, Q_electronics=100, q_person=100):
+                 Q_powertrain=50, Q_electronics=100, q_person=80):
         """
         初始化座舱热负荷计算器。
         参数:
