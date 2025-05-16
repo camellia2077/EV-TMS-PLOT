@@ -235,7 +235,7 @@ class ThermalManagementSystem:
         self.sp = sp
         self.cop = cop_value
         self.powertrain_chiller_on_state = False # 用于滞环的内部状态
-
+        self.current_ltr_level_idx_state = 0 # 新增: LTR档位的内部状态，默认为0档
     def run_cooling_loop_logic(self, current_system_states, Q_cabin_cool_actual_W):
         sp = self.sp
         # 从 current_system_states 解包所需变量
@@ -285,31 +285,84 @@ class ThermalManagementSystem:
         Q_coolant_from_LCC = Q_evap_total_needed + P_comp_mech
 
         # 5. LTR 风扇控制和散热
-        current_ltr_level_idx = 0; UA_LTR_effective = 0; P_LTR_fan_actual = 0
-        if hasattr(sp, 'LTR_coolant_temp_thresholds') and hasattr(sp, 'LTR_UA_values_at_levels') and hasattr(sp, 'LTR_fan_power_levels'):
-            for lvl_idx in range(len(sp.LTR_coolant_temp_thresholds)):
-                if current_T_coolant > sp.LTR_coolant_temp_thresholds[lvl_idx]:
-                    current_ltr_level_idx = lvl_idx + 1
+        UA_LTR_effective = 0
+        P_LTR_fan_actual = 0
+        # 获取上一时刻的 LTR 档位
+        previous_ltr_level_idx = self.current_ltr_level_idx_state
+        new_ltr_level_idx = previous_ltr_level_idx # 默认为保持上一档位
+
+        if hasattr(sp, 'LTR_coolant_temp_thresholds') and \
+        hasattr(sp, 'LTR_UA_values_at_levels') and \
+        hasattr(sp, 'LTR_fan_power_levels'):
+
+            thresholds = sp.LTR_coolant_temp_thresholds
+            # LTR_hysteresis_offset 可以从 sp 获取，如果已在 simulation_parameters.py 中定义
+            ltr_hysteresis = getattr(sp, 'LTR_hysteresis_offset', 1.0) # 默认为1.0°C
+
+            # 确定目标档位 (不考虑滞环的理想档位)
+            target_ideal_level_idx = 0
+            for lvl_idx in range(len(thresholds)):
+                if current_T_coolant > thresholds[lvl_idx]:
+                    target_ideal_level_idx = lvl_idx + 1
                 else:
                     break
-            if current_ltr_level_idx < len(sp.LTR_UA_values_at_levels):
-                UA_LTR_effective = sp.LTR_UA_values_at_levels[current_ltr_level_idx]
-                P_LTR_fan_actual = sp.LTR_fan_power_levels[current_ltr_level_idx]
-            else: 
-                current_ltr_level_idx = 0
-                UA_LTR_effective = sp.LTR_UA_values_at_levels[0] if hasattr(sp, 'LTR_UA_values_at_levels') and len(sp.LTR_UA_values_at_levels) > 0 else 0
-                P_LTR_fan_actual = sp.LTR_fan_power_levels[0] if hasattr(sp, 'LTR_fan_power_levels') and len(sp.LTR_fan_power_levels) > 0 else 0
+            # 确保 target_ideal_level_idx 不超过最大档位索引
+            if target_ideal_level_idx >= len(sp.LTR_UA_values_at_levels):
+                target_ideal_level_idx = len(sp.LTR_UA_values_at_levels) -1
+
+
+            # 应用滞环逻辑来确定新的实际档位
+            if target_ideal_level_idx > previous_ltr_level_idx:
+                # 想要升档：检查是否超过不带滞环的阈值
+                # (实际上，target_ideal_level_idx 的计算已经考虑了升档阈值)
+                new_ltr_level_idx = target_ideal_level_idx
+            elif target_ideal_level_idx < previous_ltr_level_idx:
+                # 想要降档：检查是否低于带滞环的降档阈值
+                # 我们需要找到触发当前 previous_ltr_level_idx 的阈值
+                # 如果 previous_ltr_level_idx 是0档，不能再降
+                if previous_ltr_level_idx > 0:
+                    # 触发 previous_ltr_level_idx 的阈值是 thresholds[previous_ltr_level_idx - 1]
+                    # 降档的条件是 current_T_coolant < (thresholds[previous_ltr_level_idx - 1] - ltr_hysteresis)
+                    if current_T_coolant < (thresholds[previous_ltr_level_idx - 1] - ltr_hysteresis):
+                        new_ltr_level_idx = target_ideal_level_idx # 允许降到理想的目标档位
+                    else:
+                        new_ltr_level_idx = previous_ltr_level_idx # 保持当前档位，不降档
+                else: # previous_ltr_level_idx is 0
+                    new_ltr_level_idx = 0 # 保持0档
+
+            else: # target_ideal_level_idx == previous_ltr_level_idx
+                new_ltr_level_idx = previous_ltr_level_idx # 保持当前档位
+
+            # 边界检查，确保 new_ltr_level_idx 在有效范围内
+            if new_ltr_level_idx < 0:
+                new_ltr_level_idx = 0
+            if new_ltr_level_idx >= len(sp.LTR_UA_values_at_levels):
+                new_ltr_level_idx = len(sp.LTR_UA_values_at_levels) - 1
+
+            UA_LTR_effective = sp.LTR_UA_values_at_levels[new_ltr_level_idx]
+            P_LTR_fan_actual = sp.LTR_fan_power_levels[new_ltr_level_idx]
+
+            # 更新 LTR 档位状态
+            self.current_ltr_level_idx_state = new_ltr_level_idx
+        else:
+            # 如果没有配置 LTR 参数，则 LTR 不工作，档位为0
+            self.current_ltr_level_idx_state = 0
+            UA_LTR_effective = 0
+            P_LTR_fan_actual = 0
+            new_ltr_level_idx = 0 # 确保返回值有定义
 
         Q_LTR_to_ambient = max(0, UA_LTR_effective * (current_T_coolant - sp.T_ambient))
-        LTR_effectiveness = (UA_LTR_effective / sp.UA_LTR_max) if hasattr(sp, 'UA_LTR_max') and sp.UA_LTR_max > 0 else (1.0 if UA_LTR_effective > 0 else 0.0)
+        LTR_effectiveness_factor = (UA_LTR_effective / sp.UA_LTR_max) if hasattr(sp, 'UA_LTR_max') and sp.UA_LTR_max > 0 else (1.0 if UA_LTR_effective > 0 else 0.0)
         
         return {
-            "powertrain_chiller_on_current_step": powertrain_chiller_on_current_step,
-            "Q_coolant_chiller_actual": Q_coolant_chiller_actual,
-            "P_comp_elec": P_comp_elec, "P_comp_mech": P_comp_mech,
-            "Q_coolant_from_LCC": Q_coolant_from_LCC,
-            "LTR_level": current_ltr_level_idx, "P_LTR_fan_actual": P_LTR_fan_actual,
-            "Q_LTR_to_ambient": Q_LTR_to_ambient, "LTR_effectiveness": LTR_effectiveness,
+        "powertrain_chiller_on_current_step": powertrain_chiller_on_current_step,
+        "Q_coolant_chiller_actual": Q_coolant_chiller_actual,
+        "P_comp_elec": P_comp_elec, "P_comp_mech": P_comp_mech,
+        "Q_coolant_from_LCC": Q_coolant_from_LCC,
+        "LTR_level": new_ltr_level_idx, # 使用新的档位索引
+        "P_LTR_fan_actual": P_LTR_fan_actual,
+        "Q_LTR_to_ambient": Q_LTR_to_ambient,
+        "LTR_effectiveness": LTR_effectiveness_factor, # 使用新的变量名
         }
 
     def get_powertrain_thermal_derivatives_and_heats(self, current_system_states, P_inv_in_W, cooling_loop_outputs, Q_gen_motor_W, Q_gen_inv_W):

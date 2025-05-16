@@ -133,7 +133,8 @@ if not all(LTR_fan_power_levels[i] <= LTR_fan_power_levels[i+1] for i in range(l
      print("Warning: LTR_fan_power_levels are not in non-decreasing order. Ensure this is intended.")
 if not all(LTR_UA_values_at_levels[i] <= LTR_UA_values_at_levels[i+1] for i in range(len(LTR_UA_values_at_levels)-1)):
      print("Warning: LTR_UA_values_at_levels are not in non-decreasing order. Ensure this is intended.")
-
+LTR_hysteresis_offset = get_config_value('Vehicle', 'LTR_hysteresis_offset', float, 1.0) # 默认为1.0°C
+print(f"LTR Hysteresis Offset: {LTR_hysteresis_offset}°C")
 
 N_passengers = get_config_value('Vehicle', 'N_passengers', int, 2)
 v_air_in_mps = get_config_value('Vehicle', 'v_air_in_mps', float, 0.5)
