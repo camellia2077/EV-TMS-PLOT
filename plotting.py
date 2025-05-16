@@ -204,20 +204,8 @@ class SimulationPlotter:
         print("--- 以下为此图表内各项数据的平均值 ---")
         print("--- Average Values for Cooling System Operation Plot ---")
 
-        if len(data.get('chiller_active_log', [])) > 0: # 使用 .get 以防键不存在
-            print(f"Average Powertrain Chiller Status: {np.mean(data['chiller_active_log']):.2f} (1=ON)")
-            ax1.plot(self.time_minutes, data['chiller_active_log'], label='动力总成Chiller状态 (1=ON)', color='black', drawstyle='steps-post', alpha=0.7)
-        else:
-            print("Warning: 'chiller_active_log' not found or empty in prepared_data.")
-
-        # LTR效能因子
-        #ltr_effectiveness_data = data.get('LTR_effectiveness_log', []) # 使用新的键名
-        #if len(ltr_effectiveness_data) > 0:
-        #    print(f"Average LTR Effectiveness Factor: {np.mean(ltr_effectiveness_data):.2f}")
-        #    ax1.plot(self.time_minutes, ltr_effectiveness_data, label=f'LTR效能因子 (UA_eff/UA_max)', color='brown', drawstyle='steps-post', linestyle='--', alpha=0.7) # 更新标签
-        #else:
-        #    print("Warning: 'LTR_effectiveness_log' not found or empty in prepared_data.")
-        
+        print(f"Average Powertrain Chiller Status: {np.mean(data['chiller_active_log']):.2f} (1=ON)")
+        ax1.plot(self.time_minutes, data['chiller_active_log'], label='动力总成Chiller状态 (1=ON)', color='black', drawstyle='steps-post', alpha=0.7)
         ax1.set_xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
         ax1.set_ylabel('状态 / LTR风扇功率 (W)', fontsize=self.common_settings['axis_label_fs']) # 更新Y轴标签
         ax1.tick_params(axis='x', labelsize=self.common_settings['tick_label_fs'])
@@ -227,20 +215,13 @@ class SimulationPlotter:
 
         ax2 = ax1.twinx()
         p_comp_elec_data = data.get('P_comp_elec_profile', [])
-        if len(p_comp_elec_data) > 0:
-            print(f"Average AC Compressor Total Electrical Power: {np.mean(p_comp_elec_data):.2f} W")
-            ax2.plot(self.time_minutes, p_comp_elec_data, label=f'空调压缩机总电耗 (W)', color='cyan', alpha=0.8, linestyle='-')
-        else:
-            print("Warning: 'P_comp_elec_profile' not found or empty in prepared_data.")
-
+        print(f"Average AC Compressor Total Electrical Power: {np.mean(p_comp_elec_data):.2f} W")
+        ax2.plot(self.time_minutes, p_comp_elec_data, label=f'空调压缩机总电耗 (W)', color='cyan', alpha=0.8, linestyle='-')
         q_ltr_to_ambient_data = data.get('Q_LTR_to_ambient_log', []) # 使用新的键名 'Q_LTR_to_ambient_log'
-        if len(q_ltr_to_ambient_data) > 0:
-            print(f"Average Actual LTR Heat Dissipation: {np.mean(q_ltr_to_ambient_data):.2f} W")
-            ax2.plot(self.time_minutes, q_ltr_to_ambient_data, label=f'LTR实际散热 (W)', color='orange', alpha=0.8, linestyle='-.') # 更新标签
-        else:
-            print("Warning: 'Q_LTR_to_ambient_log' not found or empty in prepared_data.")
 
-        
+        print(f"Average Actual LTR Heat Dissipation: {np.mean(q_ltr_to_ambient_data):.2f} W")
+        ax2.plot(self.time_minutes, q_ltr_to_ambient_data, label=f'LTR实际散热 (W)', color='orange', alpha=0.8, linestyle='-.') # 更新标签
+
         ax2.set_ylabel('功率 (W)', color='gray', fontsize=self.common_settings['axis_label_fs'])
         ax2.tick_params(axis='y', labelcolor='gray', labelsize=self.common_settings['tick_label_fs'])
         
@@ -273,9 +254,8 @@ class SimulationPlotter:
         print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
         print("--- Average Values for Vehicle Speed Plot ---")
-        if len(v_vehicle_profile) > 0:
-            print(f"Average Vehicle Speed: {np.mean(v_vehicle_profile):.2f} km/h")
-        
+
+        print(f"Average Vehicle Speed: {np.mean(v_vehicle_profile):.2f} km/h")
         plt.plot(self.time_minutes, v_vehicle_profile, label='车速 (km/h)', color='magenta')
         plt.ylabel('车速 (km/h)', fontsize=self.common_settings['axis_label_fs'])
         plt.xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
@@ -310,19 +290,17 @@ class SimulationPlotter:
         print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
         print("--- Average Values for Powertrain Heat Generation Plot ---")
-        if len(Q_gen_motor_profile) > 0:
-            print(f"Average Motor Heat Generation: {np.mean(Q_gen_motor_profile):.2f} W")
+
+        print(f"Average Motor Heat Generation: {np.mean(Q_gen_motor_profile):.2f} W")
         plt.plot(self.time_minutes, Q_gen_motor_profile, label='电机产热 (W)', color='blue', alpha=0.8)
 
-        if len(Q_gen_inv_profile) > 0:
-            print(f"Average Inverter Heat Generation: {np.mean(Q_gen_inv_profile):.2f} W")
+
+        print(f"Average Inverter Heat Generation: {np.mean(Q_gen_inv_profile):.2f} W")
         plt.plot(self.time_minutes, Q_gen_inv_profile, label='逆变器产热 (W)', color='orange', alpha=0.8)
 
-        if len(Q_gen_batt_profile) > 0:
-            print(f"Average Battery Heat Generation: {np.mean(Q_gen_batt_profile):.2f} W")
+        print(f"Average Battery Heat Generation: {np.mean(Q_gen_batt_profile):.2f} W")
         plt.plot(self.time_minutes, Q_gen_batt_profile, label='电池产热 (W)', color='green', alpha=0.8)
 
-    
         plt.ylabel('产热功率 (W)', fontsize=self.common_settings['axis_label_fs'])
         plt.xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
         plt.xticks(fontsize=self.common_settings['tick_label_fs'])
@@ -357,14 +335,10 @@ class SimulationPlotter:
         print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
         print("--- Average Values for Battery Power Plot ---")
-        if len(P_inv_in_profile) > 0:
-            print(f"Average Drive Power (Inverter Input): {np.mean(P_inv_in_profile):.2f} W")
+
+        print(f"Average Drive Power (Inverter Input): {np.mean(P_inv_in_profile):.2f} W")
         plt.plot(self.time_minutes, P_inv_in_profile, label='驱动用电功率 (逆变器输入 W)', color='brown', alpha=0.7)
 
-        # P_comp_elec_profile average is often printed elsewhere if it's part of another combined plot
-        # For explicitness here, we can print it again or rely on other prints.
-        # if len(P_comp_elec_profile) > 0:
-        #     print(f"Average AC Compressor Electrical Power: {np.mean(P_comp_elec_profile):.2f} W")
         plt.plot(self.time_minutes, P_comp_elec_profile, label='空调压缩机电功率 (W)', color='cyan', alpha=0.7)
 
         if len(P_elec_total_profile) > 0:
@@ -394,22 +368,20 @@ class SimulationPlotter:
         Plots actual cabin cooling power and prints its average value.
         """
         plt.figure(figsize=self.common_settings['figure_size'])
-        # VVVVVV 修改这里的键名 VVVVVV
         Q_cabin_evap_log = self.prepared_data.get('Q_cabin_evap_cooling_log', []) # 使用新的键名并添加 .get()
-        # ^^^^^^ 修改这里的键名 ^^^^^^
         chart_title = '座舱实际制冷功率变化'
         print("\nStart---------------------------------------------------")
         print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
         print("--- Average Values for Cabin Cooling Power Plot ---")
         
-        if len(Q_cabin_evap_log) > 0:
-            print(f"Average Cabin Evaporator Cooling Power: {np.mean(Q_cabin_evap_log):.2f} W")
-            plt.plot(self.time_minutes, Q_cabin_evap_log, label='座舱蒸发器制冷功率 (W)', color='teal', drawstyle='steps-post')
-        else:
-            print("Warning: 'Q_cabin_evap_cooling_log' not found or empty in prepared_data. Plot will be empty.")
-            # 绘制一个空图或占位符，如果需要
-            plt.plot([], [], label='座舱蒸发器制冷功率 (W) (无数据)', color='teal', drawstyle='steps-post')
+     
+        print(f"Average Cabin Evaporator Cooling Power: {np.mean(Q_cabin_evap_log):.2f} W")
+        plt.plot(self.time_minutes, Q_cabin_evap_log, label='座舱蒸发器制冷功率 (W)', color='teal', drawstyle='steps-post')
+
+        print("Warning: 'Q_cabin_evap_cooling_log' not found or empty in prepared_data. Plot will be empty.")
+
+        plt.plot([], [], label='座舱蒸发器制冷功率 (W) (无数据)', color='teal', drawstyle='steps-post')
 
 
         plt.ylabel('座舱制冷功率 (W)', fontsize=self.common_settings['axis_label_fs'])
@@ -421,10 +393,8 @@ class SimulationPlotter:
         min_power_val = 0
         max_power_val = 0
         if 'cabin_cooling_power_levels' in self.sim_params and self.sim_params['cabin_cooling_power_levels']:
-            # min_power_val = min(self.sim_params['cabin_cooling_power_levels']) # 如果允许负功率
             max_power_val = max(self.sim_params['cabin_cooling_power_levels'])
         elif len(Q_cabin_evap_log) > 0:
-             # min_power_val = np.min(Q_cabin_evap_log) # 如果允许负功率
              max_power_val = np.max(Q_cabin_evap_log)
         
         # 确保 Y 轴范围合理
