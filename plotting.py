@@ -172,8 +172,8 @@ class SimulationPlotter:
         self.all_extrema_data['冷却液'] = self._plot_local_extrema(ax_temp, self.time_minutes, data['T_coolant'], 'purple', '冷却液', self.extrema_text_fontsize)
         self.all_extrema_data['座舱'] = self._plot_local_extrema(ax_temp, self.time_minutes, data['T_cabin'], 'red', '座舱', self.extrema_text_fontsize)
 
-        ax_temp.axhline(self.sim_params['T_motor_target'], color='blue', linestyle='--', alpha=0.7, label=f'电机目标 ({self.sim_params["T_motor_target"]}°C)')
-        ax_temp.axhline(self.sim_params['T_inv_target'], color='orange', linestyle='--', alpha=0.7, label=f'逆变器目标 ({self.sim_params["T_inv_target"]}°C)')
+        ax_temp.axhline(self.sim_params['T_motor_target'], color='magenta', linestyle='--', alpha=0.7, label=f'电机/逆变器目标 ({self.sim_params["T_motor_target"]}°C)')
+
         ax_temp.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
 
         ax_temp.axhline(self.sim_params['T_ambient'], color='grey', linestyle='-', alpha=0.7, label=f'环境温度 ({self.sim_params["T_ambient"]}°C)')
@@ -443,35 +443,28 @@ class SimulationPlotter:
             T_cabin_accel = data['T_cabin'][0:ramp_up_index + 1]
             T_coolant_accel = data['T_coolant'][0:ramp_up_index + 1]
 
-            if len(T_motor_accel) > 0:
-                print(f"Average Motor Temperature (Accel): {np.mean(T_motor_accel):.2f} °C")
+
+            print(f"Average Motor Temperature (Accel): {np.mean(T_motor_accel):.2f} °C")
             plt.plot(v_accel, T_motor_accel, label='电机温度 (°C)', color='blue', marker='.', markersize=1, linestyle='-')
-            if len(T_inv_accel) > 0:
-                print(f"Average Inverter Temperature (Accel): {np.mean(T_inv_accel):.2f} °C")
+
+            print(f"Average Inverter Temperature (Accel): {np.mean(T_inv_accel):.2f} °C")
             plt.plot(v_accel, T_inv_accel, label='逆变器温度 (°C)', color='orange', marker='.', markersize=1, linestyle='-')
-            if len(T_batt_accel) > 0:
-                print(f"Average Battery Temperature (Accel): {np.mean(T_batt_accel):.2f} °C")
+
+            print(f"Average Battery Temperature (Accel): {np.mean(T_batt_accel):.2f} °C")
             plt.plot(v_accel, T_batt_accel, label='电池温度 (°C)', color='green', marker='.', markersize=1, linestyle='-')
-            if len(T_cabin_accel) > 0:
-                print(f"Average Cabin Temperature (Accel): {np.mean(T_cabin_accel):.2f} °C")
+
+            print(f"Average Cabin Temperature (Accel): {np.mean(T_cabin_accel):.2f} °C")
             plt.plot(v_accel, T_cabin_accel, label='座舱温度 (°C)', color='red', marker='.', markersize=1, linestyle='-')
-            if len(T_coolant_accel) > 0:
-                print(f"Average Coolant Temperature (Accel): {np.mean(T_coolant_accel):.2f} °C")
+
+            print(f"Average Coolant Temperature (Accel): {np.mean(T_coolant_accel):.2f} °C")
             plt.plot(v_accel, T_coolant_accel, label='冷却液温度 (°C)', color='purple', marker='.', markersize=1, linestyle='-', alpha=0.6)
 
-            if 'T_motor_target' in self.sim_params:
-                plt.axhline(self.sim_params['T_motor_target'], color='blue', linestyle='--', alpha=0.7, 
-                            label=f'电机目标 ({self.sim_params["T_motor_target"]}°C)')
-            if 'T_inv_target' in self.sim_params:
-                plt.axhline(self.sim_params['T_inv_target'], color='orange', linestyle='--', alpha=0.7, 
-                            label=f'逆变器目标 ({self.sim_params["T_inv_target"]}°C)')
-            # --- 新增：绘制环境温度线 ---
-            if t_ambient is not None and len(v_accel) > 0:
-                T_ambient_values = np.full_like(v_accel, t_ambient)
-                plt.plot(v_accel, T_ambient_values, label=f'环境温度 ({t_ambient}°C)', color='grey', linestyle='-', alpha=0.7)
-            if 'T_cabin_target' in self.sim_params:
-                plt.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, 
-                            label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
+            plt.axhline(self.sim_params['T_motor_target'], color='magenta', linestyle='--', alpha=0.7, label=f'电机/逆变器目标 ({self.sim_params["T_motor_target"]}°C)')
+
+            T_ambient_values = np.full_like(v_accel, t_ambient)
+            plt.plot(v_accel, T_ambient_values, label=f'环境温度 ({t_ambient}°C)', color='grey', linestyle='-', alpha=0.7)
+
+            plt.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
             plt.xlabel('车速 (km/h)', fontsize=self.common_settings['axis_label_fs'])
             plt.ylabel('温度 (°C)', fontsize=self.common_settings['axis_label_fs'])
             plt.xticks(fontsize=self.common_settings['tick_label_fs'])
@@ -523,26 +516,26 @@ class SimulationPlotter:
                 T_cabin_const_speed = _ensure(data['T_cabin'][const_speed_start_index:], len(time_const_speed_minutes))
                 T_coolant_const_speed = _ensure(data['T_coolant'][const_speed_start_index:], len(time_const_speed_minutes))
 
-                if len(T_motor_const_speed) > 0:
-                    print(f"Average Motor Temperature (Const Speed): {np.mean(T_motor_const_speed):.2f} °C")
+
+                print(f"Average Motor Temperature (Const Speed): {np.mean(T_motor_const_speed):.2f} °C")
                 plt.plot(time_const_speed_minutes, T_motor_const_speed, label='电机温度 (°C)', color='blue')
-                if len(T_inv_const_speed) > 0:
-                    print(f"Average Inverter Temperature (Const Speed): {np.mean(T_inv_const_speed):.2f} °C")
+
+                print(f"Average Inverter Temperature (Const Speed): {np.mean(T_inv_const_speed):.2f} °C")
                 plt.plot(time_const_speed_minutes, T_inv_const_speed, label='逆变器温度 (°C)', color='orange')
-                if len(T_batt_const_speed) > 0:
-                    print(f"Average Battery Temperature (Const Speed): {np.mean(T_batt_const_speed):.2f} °C")
+
+                print(f"Average Battery Temperature (Const Speed): {np.mean(T_batt_const_speed):.2f} °C")
                 plt.plot(time_const_speed_minutes, T_batt_const_speed, label='电池温度 (°C)', color='green')
-                if len(T_cabin_const_speed) > 0:
-                    print(f"Average Cabin Temperature (Const Speed): {np.mean(T_cabin_const_speed):.2f} °C")
+
+                print(f"Average Cabin Temperature (Const Speed): {np.mean(T_cabin_const_speed):.2f} °C")
                 plt.plot(time_const_speed_minutes, T_cabin_const_speed, label='座舱温度 (°C)', color='red')
-                if len(T_coolant_const_speed) > 0:
-                    print(f"Average Coolant Temperature (Const Speed): {np.mean(T_coolant_const_speed):.2f} °C")
+
+                print(f"Average Coolant Temperature (Const Speed): {np.mean(T_coolant_const_speed):.2f} °C")
                 plt.plot(time_const_speed_minutes, T_coolant_const_speed, label='冷却液温度 (°C)', color='purple', alpha=0.6)
                 
                 ax_temp = plt.gca()
-                ax_temp.axhline(self.sim_params['T_motor_target'], color='blue', linestyle='--', alpha=0.7, label=f'电机目标 ({self.sim_params["T_motor_target"]}°C)')
-                ax_temp.axhline(self.sim_params['T_inv_target'], color='orange', linestyle='--', alpha=0.7, label=f'逆变器目标 ({self.sim_params["T_inv_target"]}°C)')
-                #ax_temp.axhline(self.sim_params['T_batt_target_high'], color='green', linestyle='--', alpha=0.7, label=f'电池制冷启动 ({self.sim_params["T_batt_target_high"]}°C)')
+                ax_temp.axhline(self.sim_params['T_motor_target'], color='magenta', linestyle='--', alpha=0.7, label=f'电机/逆变器目标 ({self.sim_params["T_motor_target"]}°C)')
+
+
                 ax_temp.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
                 ax_temp.axhline(self.sim_params['T_ambient'], color='grey', linestyle='-', alpha=0.7, label=f'环境温度 ({self.sim_params["T_ambient"]}°C)')
                 plt.xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
@@ -583,60 +576,32 @@ class SimulationPlotter:
         Q_total_heat_load = data['Q_gen_motor_profile'] + data['Q_gen_inv_profile'] + \
                             data['Q_gen_batt_profile'] + data['Q_cabin_load_profile']
 
-        # VVVVVV  修改这里的总散热计算 VVVVVV
-        # 总散热系统散热功率 = LTR排向环境的热量 + Chiller从冷却液吸收的热量 + 座舱蒸发器吸收的热量
-        # 注意：这里的定义是 “系统从车辆内部移除的热量总和”
-        # LTR 直接排热到环境是散热。
-        # Chiller 和座舱蒸发器是从对应部件/区域吸热，这部分热量最终会通过LCC传递给冷却液，再由LTR排到环境。
-        # 因此，一种定义 “总散热系统散热功率” 的方式是看最终有多少热量被排到环境中。
-        # 在我们的新系统中，只有 LTR 直接与环境换热。
-        # Q_total_heat_rejection_to_env = data.get('Q_LTR_to_ambient_log', np.array([0]*len(self.time_minutes))) # 直接排环境
-        
-        # 另一种定义：系统总的吸热能力 (LTR排热 + Chiller吸热 + 座舱蒸发器吸热)
-        # 这个定义更符合图表标题 “总散热系统散热功率” 的字面意思，即系统内部各散热/制冷部件的工作功率总和。
         q_ltr = data.get('Q_LTR_to_ambient_log', np.zeros_like(self.time_minutes))
         q_chiller = data.get('Q_coolant_to_chiller_log', np.zeros_like(self.time_minutes))
         q_cabin_evap = data.get('Q_cabin_evap_cooling_log', np.zeros_like(self.time_minutes))
-
-        # 确保所有数组长度一致
         min_len = min(len(q_ltr), len(q_chiller), len(q_cabin_evap))
         q_ltr = q_ltr[:min_len]
         q_chiller = q_chiller[:min_len]
         q_cabin_evap = q_cabin_evap[:min_len]
         
         Q_total_heat_rejection_system_effort = q_ltr + q_chiller + q_cabin_evap
-        # ^^^^^^  修改这里的总散热计算 ^^^^^^
-
-
         print("\nStart---------------------------------------------------")
-        
-        if len(Q_total_heat_load) > 0:
-            # 确保 Q_total_heat_load 与 Q_total_heat_rejection_system_effort 长度一致
-            Q_total_heat_load_plot = Q_total_heat_load[:min_len]
-            print(f"Average Total Heat Load: {np.mean(Q_total_heat_load_plot):.2f} W")
-            plt.plot(self.time_minutes[:min_len], Q_total_heat_load_plot, label='总热负荷功率 (W)', color='maroon', linestyle='-')
-        else:
-            Q_total_heat_load_plot = np.array([]) # 防止后续引用错误
 
+        Q_total_heat_load_plot = Q_total_heat_load[:min_len]
+        print(f"Average Total Heat Load: {np.mean(Q_total_heat_load_plot):.2f} W")
+        plt.plot(self.time_minutes[:min_len], Q_total_heat_load_plot, label='总热负荷功率 (W)', color='maroon', linestyle='-')
         chart_title = '总热负荷功率 vs 总散热系统散热功率'
         print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
         print("--- Average Values for Total Heat Balance Plot ---")
 
-        # VVVVVV  以及这里绘制的部分 VVVVVV
-        if len(Q_total_heat_rejection_system_effort) > 0 and np.any(Q_total_heat_rejection_system_effort): # 检查是否全为0
-            print(f"Average Total Heat Rejection (System Effort): {np.mean(Q_total_heat_rejection_system_effort):.2f} W")
-            plt.plot(self.time_minutes[:min_len], Q_total_heat_rejection_system_effort, label='总散热系统移除功率 (W)', color='darkcyan', linestyle='--')
-        else:
-            print("Warning: Total heat rejection data is empty or all zeros. Line will not be plotted.")
-        # ^^^^^^  以及这里绘制的部分 ^^^^^^
 
+        print(f"Average Total Heat Rejection (System Effort): {np.mean(Q_total_heat_rejection_system_effort):.2f} W")
+        plt.plot(self.time_minutes[:min_len], Q_total_heat_rejection_system_effort, label='总散热系统移除功率 (W)', color='darkcyan', linestyle='--')
         plt.xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
         plt.ylabel('功率 (W)', fontsize=self.common_settings['axis_label_fs'])
         plt.xticks(fontsize=self.common_settings['tick_label_fs'])
         plt.yticks(fontsize=self.common_settings['tick_label_fs'])
-        
-        # Ensure xlim uses the potentially shortened time_minutes
         current_xlim_right = self.sim_params['sim_duration']/60
         if min_len < len(self.time_minutes) and min_len > 0:
             current_xlim_right = self.time_minutes[min_len-1]
@@ -673,8 +638,8 @@ class SimulationPlotter:
         print("--- 以下为此图表内各项数据的平均值 ---")
         print("--- Average Values for AC Chiller Specific Plot ---")
         
-        if len(data['chiller_active_log']) > 0:
-            print(f"Average Powertrain Chiller Status: {np.mean(data['chiller_active_log']):.2f} (1=ON)") # Duplicate from cooling_system_operation
+
+        print(f"Average Powertrain Chiller Status: {np.mean(data['chiller_active_log']):.2f} (1=ON)") # Duplicate from cooling_system_operation
         ax1.plot(time_minutes, data['chiller_active_log'], label='动力总成Chiller状态 (1=ON)', color='black', drawstyle='steps-post', alpha=0.7)
         
         ax1.set_xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
