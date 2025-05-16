@@ -174,12 +174,9 @@ class SimulationPlotter:
 
         ax_temp.axhline(self.sim_params['T_motor_target'], color='blue', linestyle='--', alpha=0.7, label=f'电机目标 ({self.sim_params["T_motor_target"]}°C)')
         ax_temp.axhline(self.sim_params['T_inv_target'], color='orange', linestyle='--', alpha=0.7, label=f'逆变器目标 ({self.sim_params["T_inv_target"]}°C)')
-        #ax_temp.axhline(self.sim_params['T_batt_target_high'], color='green', linestyle='--', alpha=0.7, label=f'电池制冷启动 ({self.sim_params["T_batt_target_high"]}°C)')
-        #if 'T_batt_stop_cool' in self.sim_params:
-        #    ax_temp.axhline(self.sim_params['T_batt_stop_cool'], color='green', linestyle=':', alpha=0.7, label=f'电池制冷停止 ({self.sim_params["T_batt_stop_cool"]:.1f}°C)')
         ax_temp.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
 
-        ax_temp.axhline(self.sim_params['T_ambient'], color='grey', linestyle=':', alpha=0.7, label=f'环境温度 ({self.sim_params["T_ambient"]}°C)')
+        ax_temp.axhline(self.sim_params['T_ambient'], color='grey', linestyle='-', alpha=0.7, label=f'环境温度 ({self.sim_params["T_ambient"]}°C)')
         ax_temp.set_ylabel('温度 (°C)', fontsize=self.common_settings['axis_label_fs'])
         ax_temp.set_xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
         ax_temp.tick_params(axis='x', labelsize=self.common_settings['tick_label_fs'])
@@ -461,6 +458,8 @@ class SimulationPlotter:
         ramp_up_steps = int(ramp_up_time_sec / dt_sim) if dt_sim > 0 else 0
         max_possible_index = len(data['v_vehicle_profile']) -1
         ramp_up_index = min(ramp_up_steps, max_possible_index)
+        # --- 获取环境温度 ---
+        t_ambient = self.sim_params.get('T_ambient', None) # 从 sim_params 获取环境温度
         chart_title = f'加速阶段部件温度随车速变化轨迹 ({self.sim_params.get("v_start", "N/A")}到{self.sim_params.get("v_end","N/A")} km/h)'
         print("\nStart---------------------------------------------------")
         print(f"--- 图表: {chart_title} ---")
@@ -496,13 +495,13 @@ class SimulationPlotter:
             if 'T_inv_target' in self.sim_params:
                 plt.axhline(self.sim_params['T_inv_target'], color='orange', linestyle='--', alpha=0.7, 
                             label=f'逆变器目标 ({self.sim_params["T_inv_target"]}°C)')
-            if 'T_batt_target_high' in self.sim_params:
-                plt.axhline(self.sim_params['T_batt_target_high'], color='green', linestyle='--', alpha=0.7, 
-                            label=f'电池制冷启动 ({self.sim_params["T_batt_target_high"]}°C)')
+            # --- 新增：绘制环境温度线 ---
+            if t_ambient is not None and len(v_accel) > 0:
+                T_ambient_values = np.full_like(v_accel, t_ambient)
+                plt.plot(v_accel, T_ambient_values, label=f'环境温度 ({t_ambient}°C)', color='grey', linestyle='-', alpha=0.7)
             if 'T_cabin_target' in self.sim_params:
                 plt.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, 
                             label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
-
             plt.xlabel('车速 (km/h)', fontsize=self.common_settings['axis_label_fs'])
             plt.ylabel('温度 (°C)', fontsize=self.common_settings['axis_label_fs'])
             plt.xticks(fontsize=self.common_settings['tick_label_fs'])
@@ -573,9 +572,9 @@ class SimulationPlotter:
                 ax_temp = plt.gca()
                 ax_temp.axhline(self.sim_params['T_motor_target'], color='blue', linestyle='--', alpha=0.7, label=f'电机目标 ({self.sim_params["T_motor_target"]}°C)')
                 ax_temp.axhline(self.sim_params['T_inv_target'], color='orange', linestyle='--', alpha=0.7, label=f'逆变器目标 ({self.sim_params["T_inv_target"]}°C)')
-                ax_temp.axhline(self.sim_params['T_batt_target_high'], color='green', linestyle='--', alpha=0.7, label=f'电池制冷启动 ({self.sim_params["T_batt_target_high"]}°C)')
+                #ax_temp.axhline(self.sim_params['T_batt_target_high'], color='green', linestyle='--', alpha=0.7, label=f'电池制冷启动 ({self.sim_params["T_batt_target_high"]}°C)')
                 ax_temp.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
-                ax_temp.axhline(self.sim_params['T_ambient'], color='grey', linestyle=':', alpha=0.7, label=f'环境温度 ({self.sim_params["T_ambient"]}°C)')
+                ax_temp.axhline(self.sim_params['T_ambient'], color='grey', linestyle='-', alpha=0.7, label=f'环境温度 ({self.sim_params["T_ambient"]}°C)')
                 plt.xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
                 plt.ylabel('温度 (°C)', fontsize=self.common_settings['axis_label_fs'])
                 plt.xticks(fontsize=self.common_settings['tick_label_fs'])
