@@ -194,47 +194,52 @@ class SimulationPlotter:
 
     def plot_cooling_system_operation(self):
         """
-        制冷系统运行状态、散热器效能及相关功率
-        Plots cooling system operation status and related powers, and prints their average values.
+        制冷/散热系统相关功率
+        Plots cooling system related powers and prints their average values.
         """
-        fig, ax1 = plt.subplots(figsize=self.common_settings['figure_size'])
-        data = self.prepared_data # self.prepared_data 使用的是新的键名
-        chart_title = '制冷/散热系统运行状态、LTR风扇功率及相关功率' # 更新图表标题
+        fig, ax1 = plt.subplots(figsize=self.common_settings['figure_size']) # 只创建一个轴
+        data = self.prepared_data
+        chart_title = '制冷/散热系统相关功率' # 更新图表标题
         print(f"--- 图表: {chart_title} ---")
         print("--- 以下为此图表内各项数据的平均值 ---")
         print("--- Average Values for Cooling System Operation Plot ---")
 
-        print(f"Average Powertrain Chiller Status: {np.mean(data['chiller_active_log']):.2f} (1=ON)")
-        ax1.plot(self.time_minutes, data['chiller_active_log'], label='动力总成Chiller状态 (1=ON)', color='black', drawstyle='steps-post', alpha=0.7)
+        # 设置 X 轴从 0 开始
+        if len(self.time_minutes) > 0:
+            ax1.set_xlim(left=0, right=max(self.time_minutes) if len(self.time_minutes) > 1 else 10)
+        else:
+            ax1.set_xlim(left=0, right=10)
+
         ax1.set_xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
-        ax1.set_ylabel('状态 / LTR风扇功率 (W)', fontsize=self.common_settings['axis_label_fs']) # 更新Y轴标签
+        ax1.set_ylabel('功率 (W)', fontsize=self.common_settings['axis_label_fs']) # Y轴统一为功率
         ax1.tick_params(axis='x', labelsize=self.common_settings['tick_label_fs'])
         ax1.tick_params(axis='y', labelsize=self.common_settings['tick_label_fs'])
-        ax1.set_ylim(-0.1, 1.1)
         ax1.grid(True, linestyle=':', alpha=0.6)
-
-        ax2 = ax1.twinx()
         p_comp_elec_data = data.get('P_comp_elec_profile', [])
-        print(f"Average AC Compressor Total Electrical Power: {np.mean(p_comp_elec_data):.2f} W")
-        ax2.plot(self.time_minutes, p_comp_elec_data, label=f'空调压缩机总电耗 (W)', color='cyan', alpha=0.8, linestyle='-')
-        q_ltr_to_ambient_data = data.get('Q_LTR_to_ambient_log', []) # 使用新的键名 'Q_LTR_to_ambient_log'
+        if len(p_comp_elec_data) > 0:
+            print(f"Average AC Compressor Total Electrical Power: {np.mean(p_comp_elec_data):.2f} W")
+            ax1.plot(self.time_minutes, p_comp_elec_data, label=f'空调压缩机总电耗 (W)', color='cyan', alpha=0.8, linestyle='-')
+        else:
+            ax1.plot([], [], label=f'空调压缩机总电耗 (W)', color='cyan', alpha=0.8, linestyle='-')
 
-        print(f"Average Actual LTR Heat Dissipation: {np.mean(q_ltr_to_ambient_data):.2f} W")
-        ax2.plot(self.time_minutes, q_ltr_to_ambient_data, label=f'LTR实际散热 (W)', color='orange', alpha=0.8, linestyle='-.') # 更新标签
+        q_ltr_to_ambient_data = data.get('Q_LTR_to_ambient_log', [])
+        if len(q_ltr_to_ambient_data) > 0:
+            print(f"Average Actual LTR Heat Dissipation: {np.mean(q_ltr_to_ambient_data):.2f} W")
+            ax1.plot(self.time_minutes, q_ltr_to_ambient_data, label=f'LTR实际散热 (W)', color='orange', alpha=0.8, linestyle='-.')
+        else:
+            ax1.plot([], [], label=f'LTR实际散热 (W)', color='orange', alpha=0.8, linestyle='-.')
 
-        ax2.set_ylabel('功率 (W)', color='gray', fontsize=self.common_settings['axis_label_fs'])
-        ax2.tick_params(axis='y', labelcolor='gray', labelsize=self.common_settings['tick_label_fs'])
-        
         max_p_comp = np.max(p_comp_elec_data) if len(p_comp_elec_data) > 0 else 0
         max_q_ltr = np.max(q_ltr_to_ambient_data) if len(q_ltr_to_ambient_data) > 0 else 0
-        max_power_y2 = max(max_p_comp, max_q_ltr)
-        ax2.set_ylim(0, max_power_y2 * 1.1 if max_power_y2 > 0 else 100) # 最小Y轴值为0
+        max_power_y = max(max_p_comp, max_q_ltr) # 现在只有一个Y轴
+        ax1.set_ylim(bottom=0, top=max_power_y * 1.1 if max_power_y > 0 else 100)
 
+        # 获取并设置图例 (现在只从 ax1 获取)
         lines, labels = ax1.get_legend_handles_labels()
-        lines2, labels2 = ax2.get_legend_handles_labels()
-        ax2.legend(lines + lines2, labels + labels2, loc='best', fontsize=self.common_settings['legend_font_size'])
+        if lines: # 确保有图例项
+            ax1.legend(lines, labels, loc='best', fontsize=self.common_settings['legend_font_size'])
 
-        plt.title(chart_title, fontsize=self.common_settings['title_fs']) # 使用更新后的图表标题
+        plt.title(chart_title, fontsize=self.common_settings['title_fs'])
         plt.tight_layout()
         filename = os.path.join(self.output_dir, "plot_cooling_system_operation.png")
         plt.savefig(filename, dpi=self.common_settings['dpi'])
