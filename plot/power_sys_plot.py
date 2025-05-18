@@ -1,9 +1,6 @@
 import matplotlib.pyplot as plt
 # Import all necessary functions from power_sys.py
 from power_sys import (
-    rho_air_func,
-    F_roll_func,
-    F_aero_func,
     P_wheel_func,
     P_motor_func,
     Q_mot_func,
@@ -122,25 +119,35 @@ for v in speeds:
 plt.figure(figsize=(12, 8)) # 设置图形大小
 
 # 绘制总产热和各部分产热
-plt.plot(speeds, total_heat_values, label='总产热功率 (Total Heat)', linewidth=2)
-plt.plot(speeds, motor_heat_values, label='电机产热 (Motor Heat)', linestyle='--')
-plt.plot(speeds, inverter_heat_values, label='逆变器产热 (Inverter Heat)', linestyle=':')
-plt.plot(speeds, battery_heat_values, label='电池产热 (Battery Heat)', linestyle='-.')
+# 绘制总产热和各部分产热
+plt.plot(speeds, total_heat_values, label='总产热功率', linewidth=4, color='blue') 
+plt.plot(speeds, motor_heat_values, label='电机产热', linestyle='--',linewidth=2, color='orange')
+plt.plot(speeds, inverter_heat_values, label='逆变器产热 ', linestyle='--',linewidth=2, color='green')
+plt.plot(speeds, battery_heat_values, label='电池产热', linestyle='--', linewidth=2,color='red')
 
 
+# 定义字体大小变量，方便统一修改
+size = 20
+#title_fontsize = 16
+#axis_label_fontsize = 14
+#tick_label_fontsize = 12 # 坐标轴刻度标签字体大小
+#legend_fontsize = 12   # 图例字体大小
 # 添加标题和标签
-plt.title(f'不同速度下的产热功率 (环境温度: {T_temp}℃)')
-plt.xlabel('速度 (km/h)')
-plt.ylabel('产热功率 (W)')
+plt.title(f'不同速度下的产热功率 (环境温度: {T_temp}℃)',fontsize = size)
+plt.xlabel('速度 (km/h)',fontsize = size)
+plt.ylabel('产热功率 (W)',fontsize = size)
 
 # 添加图例
-plt.legend()
+plt.legend(fontsize = size)
 
 # 添加网格
 plt.grid(True)
 # 设置纵坐标(Y轴)的下限为0，让其从0开始
 plt.ylim(bottom=0)
 plt.xlim(left=25) # Corrected from plt.xlim(left=20) if you want to start axis from 25
+plt.xticks(fontsize=size) # 或者 fontsize=tick_label_fontsize
+plt.yticks(fontsize=size) # 或者 fontsize=tick_label_fontsize
+
 # 显示图形
 # 在某些环境中（如Jupyter Notebook），需要设置matplotlib以正确显示中文
 plt.rcParams['font.sans-serif'] = ['SimSun'] 
