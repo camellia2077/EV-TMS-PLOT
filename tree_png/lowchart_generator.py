@@ -299,31 +299,6 @@ class HtmlOutputter(Outputter):
             print(f"保存 HTML 文件失败: {e}")
 
 
-class MarkdownOutputter(Outputter):
-    def __init__(self, config_manager):
-        super().__init__(config_manager, 'Markdown')
-        self.code_block_language = self.config.get('Markdown', 'code_block_language', fallback="text")
-
-    def generate(self, text_content, font_path=None): # font_path is not used
-        output_filepath = self.get_output_path()
-        ensure_output_dir(os.path.dirname(output_filepath))
-
-        stripped_content = text_content.strip()
-        if not stripped_content and not text_content: # Handle truly empty string
-            stripped_content = " " # Ensure code block is not empty, or adjust as preferred
-
-        if self.code_block_language:
-            markdown_content = f"```{self.code_block_language}\n{stripped_content}\n```"
-        else:
-            markdown_content = f"```\n{stripped_content}\n```"
-        
-        try:
-            with open(output_filepath, "w", encoding="utf-8") as f:
-                f.write(markdown_content)
-            print(f"图表已保存为 Markdown: {output_filepath}")
-        except Exception as e:
-            print(f"保存 Markdown 文件失败: {e}")
-
 
 # --- Font Searching ---
 def find_font(config_manager):
@@ -363,51 +338,7 @@ def main():
         config_mgr = ConfigManager("config.ini")
     except FileNotFoundError as e:
         print(e)
-        # Create a dummy config.ini if not found for demonstration
-        print("正在创建示例 'config.ini' 文件。请根据需要修改它。")
-        with open("config.ini", "w", encoding="utf-8") as cfg_file:
-            cfg_file.write("""[General]
-input_file = input.txt
-font_candidates = SourceHanSerifSC-Bold.otf,SimSun.ttf,msyh.ttc,ukai.ttc,wqy-microhei.ttc,arial.ttf
-output_directory = output_flowcharts
-system_font_dirs_windows = C:/Windows/Fonts
-system_font_dirs_posix = /usr/share/fonts/truetype/,/usr/local/share/fonts/,~/.fonts/,/Library/Fonts/,/System/Library/Fonts/
-
-[PNG]
-enabled = 1
-output_filename = text_flowchart.png
-font_size = 15
-padding = 20
-scale_factor = 2.0
-bg_color = 255, 255, 255
-text_color = 0, 0, 0
-
-[PDF]
-enabled = 1
-output_filename = text_flowchart.pdf
-font_size_pt = 12
-padding_pt = 36
-bg_color_rgb = 255, 255, 255
-text_color_rgb = 0, 0, 0
-dpi = 300.0
-
-[HTML]
-enabled = 1
-output_filename = text_flowchart.html
-font_family = Consolas, 'Courier New', monospace, '黑体', 'SimHei', Arial, sans-serif
-font_size_px = 16
-text_color_hex = #000000
-bg_color_hex = #FFFFFF
-padding_px = 20
-line_height_ratio = 1.5
-
-[Markdown]
-enabled = 1
-output_filename = text_flowchart.md
-code_block_language = text
-""")
-        print("'config.ini' 已创建。请再次运行脚本。")
-        return
+        print("缺少配置文件ini")
 
     # Ensure output directory from config exists
     output_dir_general = config_mgr.get('General', 'output_directory', fallback='output_flowcharts')
@@ -444,7 +375,6 @@ code_block_language = text
         'PNG': PngOutputter,
         'PDF': PdfOutputter,
         'HTML': HtmlOutputter,
-        'Markdown': MarkdownOutputter
     }
 
     for section_name, OutputterClass in outputter_map.items():
