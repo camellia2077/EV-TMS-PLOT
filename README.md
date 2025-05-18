@@ -3,7 +3,10 @@
 
 # 项目文件夹说明
 ## png_tree
-这个文件夹可以把txt转为html,png,png输出，用于查看程序的结构
+txt转为html,png,png输出，用于查看程序的结构
+
+## plot
+生成动力系统吧和座舱产热的图
 
 # 配置环境
 pip install -r requirements.txt
