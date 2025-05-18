@@ -303,15 +303,32 @@ class HtmlOutputter(Outputter):
 # --- Font Searching ---
 def find_font(config_manager):
     font_candidates = config_manager.get_list('General', 'font_candidates')
-    font_file_path = None
+    # font_file_path = None # Not strictly needed here anymore
 
-    # 1. Check script directory
+    # 获取脚本文件所在的真实目录
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # 1. 检查脚本同目录下的 'fonts' 子文件夹
+    fonts_subdir = os.path.join(script_dir, "fonts")
+    if os.path.isdir(fonts_subdir): # 首先确保 'fonts' 文件夹存在
+        for font_name in font_candidates:
+            path_try = os.path.join(fonts_subdir, font_name)
+            if os.path.exists(path_try):
+                print(f"找到字体 (./fonts/ 文件夹): {path_try}")
+                return path_try
+    else:
+        print(f"提示: 未在脚本目录找到 'fonts' 子文件夹 ({fonts_subdir})。")
+
+
+    # 2. 检查脚本所在的目录 (与 lowchart_generator.py 同级)
+    # (之前的 "1. Check script directory" 逻辑现在更明确地指向脚本实际位置)
     for font_name in font_candidates:
-        if os.path.exists(font_name):
-            print(f"找到字体 (脚本目录): {font_name}")
-            return font_name
+        path_try = os.path.join(script_dir, font_name) # 直接在脚本目录查找
+        if os.path.exists(path_try):
+            print(f"找到字体 (脚本所在目录): {path_try}")
+            return path_try
     
-    # 2. Check system font directories
+    # 3. 检查系统字体目录 (这部分逻辑保持不变)
     system_font_dirs_str = ""
     if os.name == 'nt': # Windows
         system_font_dirs_str = config_manager.get('General', 'system_font_dirs_windows', fallback='')
