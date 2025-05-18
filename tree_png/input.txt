@@ -1,0 +1,109 @@
+开始
+│
+├─> [初始化 SimulationEngine (`SimulationEngine.__init__`)]
+│   │
+│   ├─> 实例化 DataManager (`self.data_manager = DataManager(sp)`)
+│   │   └─> DataManager 初始化 (`DataManager.__init__`):
+│   │       ├─> 计算总仿真步数 (`n_steps`) 和时间序列 (`time_sim`)
+│   │       └─> 初始化所有历史记录数组 (如 `T_motor_hist`, `Q_gen_motor_profile_hist`, 等) 为零
+│   │
+│   ├─> 实例化 VehicleMotionModel (`self.vehicle_model = VehicleMotionModel(sp)`)
+│   ├─> 实例化 CabinModel (`self.cabin_model = CabinModel(sp)`)
+│   ├─> 实例化 ThermalManagementSystem (`self.thermal_system = ThermalManagementSystem(sp, cop_value)`)
+│   │
+│   └─> 调用 `_initialize_simulation_state_t0()` 方法设置并记录 t=0 时刻的状态:
+│       │
+│       ├─> [DataManager 设置基本初始值 (`data_manager.set_initial_values_from_sp()`)]
+│       │   ├─> 设置各部件初始温度 (如 `T_motor_hist[0]`) 和初始车速 (`v_vehicle_profile_hist[0]`)
+│       │   ├─> 根据初始冷却液温度计算并记录 LTR 初始档位、风扇功率、散热量 (`LTR_level_log[0]`, `P_LTR_fan_actual_hist[0]`, `Q_LTR_hist[0]`)
+│       │   ├─> 根据初始座舱温度计算并记录座舱初始制冷功率 (`Q_cabin_cool_actual_hist[0]`)
+│       │   └─> 设置动力总成 Chiller 初始为关闭状态 (`powertrain_chiller_active_log[0]`, `Q_coolant_chiller_actual_hist[0]`)
+│       │
+│       ├─> 获取 t=0 时刻的状态 (`states_t0 = self.data_manager.get_current_states(0)`)
+│       │
+│       ├─> [CabinModel] 计算 t=0 座舱总热负荷 (`Q_cabin_load_t0`)
+│       │   └─> 记录 `Q_cabin_load_total_hist[0] = Q_cabin_load_t0`
+│       │
+│       ├─> [VehicleMotionModel] 计算 t=0 动力总成产热 (基于初始车速 `states_t0["v_vehicle_kmh"]`):
+│       │   ├─> 电机产热 (`Q_gen_motor_t0`)，逆变器产热 (`Q_gen_inv_t0`)，逆变器输入功率 (`P_inv_in_t0`)
+│       │   └─> 记录 `Q_gen_motor_profile_hist[0]`, `Q_gen_inv_profile_hist[0]`
+│       │
+│       ├─> 计算 t=0 压缩机电耗 (`P_comp_elec_t0`) 和 LCC 传给冷却液的热量 (`Q_coolant_from_LCC_hist[0]`):
+│       │   ├─> 总蒸发负荷 = `Q_cabin_cool_actual_hist[0]` + `Q_coolant_chiller_actual_hist[0]`
+│       │   ├─> 计算压缩机机械功和电耗
+│       │   └─> 记录 `P_comp_elec_profile_hist[0]`, `Q_coolant_from_LCC_hist[0]`
+│       │
+│       └─> [ThermalManagementSystem (间接通过 `power_heat_calculator`)] 计算 t=0 电池产热 (`Q_gen_batt_t0`):
+│           ├─> 电池总输出功率 = `P_inv_in_t0` + `P_comp_elec_t0` + `P_LTR_fan_actual_hist[0]`
+│           └─> 记录 `Q_gen_batt_profile_hist[0] = Q_gen_batt_t0`
+│
+├─> [主仿真循环 (`SimulationEngine.run_simulation`)] (对每个时间步 `i` 从 0 到 `n_steps-1` 迭代)
+│   │
+│   ├─> [DataManager] 获取当前时间步 `i` 开始时的系统状态 (`current_states_at_i`)
+│   │   │ (包括 `T_motor_hist[i]`, `T_cabin_hist[i]`, `time_sim[i]`, `v_vehicle_profile_hist[i]` 等)
+│   │
+│   ├─> [VehicleMotionModel]
+│   │   ├─> 计算当前车速 `v_vehicle_current_kmh` (基于 `current_states_at_i["time_sec"]`)
+│   │   └─> 计算电机产热 `Q_gen_motor`、逆变器产热 `Q_gen_inv`、逆变器输入功率 `P_inv_in` (基于 `v_vehicle_current_kmh`)
+│   │
+│   ├─> [CabinModel]
+│   │   ├─> 计算座舱总热负荷 `Q_cabin_load_total` (基于 `current_states_at_i["T_cabin"]`, `v_vehicle_current_kmh`)
+│   │   └─> 确定座舱实际制冷功率 `Q_cabin_cool_actual` (基于 `current_states_at_i["T_cabin"]`)
+│   │
+│   ├─> [ThermalManagementSystem (`run_cooling_loop_logic`)] 执行冷却回路控制与热量计算:
+│   │   ├─> 动力总成 Chiller 控制逻辑 (带滞环)，确定 `powertrain_chiller_on_current_step`
+│   │   ├─> 计算 Chiller 从冷却液实际吸热量 `Q_coolant_chiller_actual`
+│   │   ├─> 计算总蒸发负荷 (座舱 + Chiller)
+│   │   ├─> 计算压缩机机械功率 `P_comp_mech` 和电功率 `P_comp_elec`
+│   │   ├─> 计算 LCC 传给冷却液的热量 `Q_coolant_from_LCC`
+│   │   └─> LTR 风扇档位控制 (带滞环)，确定 `LTR_level`、风扇功率 `P_LTR_fan_actual`、实际散热量 `Q_LTR_to_ambient`、效能因子 `LTR_effectiveness`
+│   │   (返回 `cooling_loop_outputs` 字典)
+│   │
+│   ├─> [ThermalManagementSystem (`get_powertrain_thermal_derivatives_and_heats`)] 计算动力总成部件热平衡:
+│   │   ├─> 计算电池总输出电功率 (`P_inv_in` + `P_comp_elec` + `P_LTR_fan_actual`)
+│   │   ├─> 计算电池产热 `Q_gen_batt`
+│   │   ├─> 计算电机、逆变器、电池到冷却液的传热量 (`Q_motor_to_coolant`, 等)
+│   │   └─> 计算电机、逆变器、电池的温度变化率 (`dT_motor_dt`, `dT_inv_dt`, `dT_batt_dt`)
+│   │   (返回 `powertrain_thermal_outputs` 字典)
+│   │
+│   ├─> 计算座舱温度变化率 `dT_cabin_dt`
+│   │   └─> `(Q_cabin_load_total - Q_cabin_cool_actual) / sp.mc_cabin`
+│   │
+│   ├─> [ThermalManagementSystem (`get_coolant_temp_derivative`)] 计算冷却液温度变化率 `dT_coolant_dt`
+│   │   └─> 基于流入和流出冷却液的总热量
+│   │
+│   ├─> [更新各部件温度] (前向欧拉法，计算下一时间步 `i+1` 的温度)
+│   │   ├─> `T_motor_next = T_motor_hist[i] + dT_motor_dt * sp.dt`
+│   │   ├─> `T_inv_next = T_inv_hist[i] + dT_inv_dt * sp.dt`
+│   │   ├─> `T_batt_next = T_batt_hist[i] + dT_batt_dt * sp.dt`
+│   │   ├─> `T_cabin_next = T_cabin_hist[i] + dT_cabin_dt * sp.dt`
+│   │   └─> `T_coolant_next = T_coolant_hist[i] + dT_coolant_dt * sp.dt`
+│   │   (结果存入 `next_step_temperatures` 字典)
+│   │
+│   └─> [DataManager (`record_step_data`)] 记录当前时间步 `i` 的数据和下一时间步 `i+1` 的温度:
+│       ├─> 将 `next_step_temperatures` 记录到历史数组的 `i+1` 索引
+│       └─> 将当前步计算的各项数据 (如 `v_vehicle_current_kmh`, `Q_gen_motor`, `Q_cabin_load_total`, `powertrain_chiller_on_current_step`, `P_comp_elec`, `LTR_level`, `Q_gen_batt` 等打包到 `data_for_step_i`) 记录到历史数组的 `i` 索引
+│
+├─> [仿真结束处理 (`_fill_final_step_profiles`)] (填充最后一个时间点 `n_steps` 的剖面数据)
+│   │
+│   ├─> 获取仿真结束时 (t= `n_steps`) 的最终温度状态 (`final_states_at_n`)
+│   │
+│   ├─> [VehicleMotionModel] 重新计算 `n_steps` 时刻的车速 `v_vehicle_final_kmh`
+│   │   └─> 记录 `v_vehicle_profile_hist[n_steps]`
+│   │
+│   ├─> [VehicleMotionModel] 重新计算 `n_steps` 时刻的动力总成产热和逆变器输入功率
+│   │   └─> 记录 `Q_gen_motor_profile_hist[n_steps]`, `Q_gen_inv_profile_hist[n_steps]`
+│   │
+│   ├─> [CabinModel] 重新计算 `n_steps` 时刻的座舱热负荷和实际制冷功率
+│   │   └─> 记录 `Q_cabin_load_total_hist[n_steps]`, `Q_cabin_cool_actual_hist[n_steps]`
+│   │
+│   ├─> [ThermalManagementSystem (`run_cooling_loop_logic`)] 重新计算 `n_steps` 时刻的冷却系统状态和热流/功率
+│   │   └─> 记录 `powertrain_chiller_active_log[n_steps]`, `Q_coolant_chiller_actual_hist[n_steps]`, `P_comp_elec_profile_hist[n_steps]`, `Q_coolant_from_LCC_hist[n_steps]`, `LTR_level_log[n_steps]`, 等
+│   │
+│   └─> [ThermalManagementSystem (间接通过 `power_heat_calculator`)] 重新计算 `n_steps` 时刻的电池产热
+│       └─> 记录 `Q_gen_batt_profile_hist[n_steps]`
+│
+└─> [DataManager (`package_results`)] 打包所有仿真结果数据
+    └─> 返回包含所有历史数据的字典
+
+结束
