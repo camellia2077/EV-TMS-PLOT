@@ -4,7 +4,7 @@
 # 它是整个仿真程序参数配置的中心。
 
 import configparser # 导入用于读取和解析 .ini 配置文件的库
-from heat_vehicle import rho_air_func # 从 heat_vehicle 模块导入 rho_air_func 函数，用于计算座舱空气密度
+from heat_cabin_class import rho_air_func # 从 heat_cabin_class 模块导入 rho_air_func 函数，用于计算座舱空气密度
 
 # --- 0. 初始化 ConfigParser 并读取 INI 配置文件 ---
 config = configparser.ConfigParser() # 创建一个 ConfigParser 对象
@@ -346,7 +346,7 @@ T_batt_stop_cool = T_batt_target_low
 T_evap_sat_for_UA_calc = T_evap_sat_C_in
 
 # --- 配置加载结束 ---
-print("所有参数已加载/派生。")
+print("所有参数已加载。")
 # 打印一些关键的配置信息以供核对
 print(f"绘图设置: 尺寸=({figure_width_inches}, {figure_height_inches}), DPI={figure_dpi}, 图例字号={legend_font_size}, 轴标签字号={axis_label_font_size}, 刻度字号={tick_label_font_size}, 标题字号={title_font_size}")
 print(f"座舱冷却等级 (W): {cabin_cooling_power_levels}")

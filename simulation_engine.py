@@ -4,9 +4,9 @@
 # 并在定义的时间跨度内，以离散的时间步长模拟它们之间的相互作用及与环境的热交换。
 
 import numpy as np  # 导入NumPy库，用于高效的数值计算，特别是数组操作
-import heat_vehicle as hv # 导入自定义的 heat_vehicle 模块，用于计算动力系统相关的产热和功率需求
-from heat_cabin_class import CabinHeatCalculator # 导入自定义的 heat_cabin_class 模块中的 CabinHeatCalculator 类，用于计算座舱热负荷
 
+from heat_cabin_class import CabinHeatCalculator # 导入自定义的 heat_cabin_class 模块中的 CabinHeatCalculator 类，用于计算座舱热负荷
+from heat_vehicle_class import PowerHeatCalculator
 class DataManager:
     """
     DataManager 类：
@@ -212,7 +212,12 @@ class VehicleMotionModel:
         参数:
             sp: simulation_parameters 模块的实例。
         """
+        #m,motor_eta,u_batt, r_int, eta_inv
         self.sp = sp # 存储仿真参数对象的引用
+        self.power_heat_calculator = PowerHeatCalculator(
+            m = sp.m_vehicle,motor_eta = sp.eta_motor,u_batt = sp.u_batt,r_int = sp.R_int_batt,
+            eta_inv = sp.eta_inv,
+        )
 
     def get_current_speed_kmh(self, current_time_sec):
         """
@@ -248,18 +253,20 @@ class VehicleMotionModel:
                 P_inv_in (float): 逆变器输入功率 (W)，即从电池侧获取的用于驱动的功率。
         """
         sp = self.sp
-        P_inv_in = 0; Q_gen_motor = 0; Q_gen_inv = 0 # 初始化返回值
+        T_ambient = sp.T_ambient
+
+        Q_gen_motor = 0
+        Q_gen_inv = 0
+        P_inv_in = 0
+
         try:
-            # 1. 计算车轮处所需功率 (克服滚动阻力和空气阻力)
-            P_wheel = hv.P_wheel_func(v_vehicle_current_kmh, sp.m_vehicle, sp.T_ambient)
-            # 2. 计算电机输入功率 (考虑电机效率)
-            P_motor_in = hv.P_motor_func(P_wheel, sp.eta_motor)
-            # 3. 计算逆变器输入功率 (考虑逆变器效率)
-            P_inv_in = P_motor_in / sp.eta_inv if sp.eta_inv > 0 else 0
-            # 4. 计算电机产热功率
-            Q_gen_motor = hv.Q_mot_func(P_motor_in, sp.eta_motor)
-            # 5. 计算逆变器产热功率
-            Q_gen_inv = hv.Q_inv_func(P_motor_in, sp.eta_inv)
+
+            #
+            Q_gen_motor = self.power_heat_calculator.Q_mot_func(v_vehicle_current_kmh,T_ambient)
+
+            Q_gen_inv = self.power_heat_calculator.Q_inv_func(v_vehicle_current_kmh,T_ambient)
+            P_inv_in = self.power_heat_calculator.P_inv_fuc(v_vehicle_current_kmh,T_ambient)
+
         except AttributeError as e: # 捕获导入的 hv 模块中函数缺失的错误
             print(f"警告: 动力总成产热函数缺失/错误 (heat_vehicle.py)。{e}")
         except Exception as e: # 捕获其他潜在计算错误
@@ -369,6 +376,10 @@ class ThermalManagementSystem:
         self.cop = cop_value # 存储制冷循环 COP 值
         self.powertrain_chiller_on_state = False # 动力总成Chiller的内部开关状态，用于实现滞环控制，初始为关闭
         self.current_ltr_level_idx_state = 0 # LTR档位的内部状态索引，初始为0档 (最低档)
+        self.power_heat_calculator = PowerHeatCalculator(
+            m = sp.m_vehicle,motor_eta = sp.eta_motor,u_batt = sp.u_batt,r_int = sp.R_int_batt,
+            eta_inv = sp.eta_inv,
+        )
 
     def run_cooling_loop_logic(self, current_system_states, Q_cabin_cool_actual_W):
         """
@@ -546,8 +557,8 @@ class ThermalManagementSystem:
         P_elec_total_batt_out = P_inv_in_W + P_comp_elec + P_LTR_fan_actual
         Q_gen_batt = 0 # 初始化电池产热
         try:
-            # 调用 heat_vehicle 模块中的函数计算电池焦耳热
-            Q_gen_batt = hv.Q_batt_func(P_elec_total_batt_out, sp.u_batt, sp.R_int_batt)
+            # 调用 heat_vehicle类 模块中的函数计算电池总产热
+            Q_gen_batt = self.power_heat_calculator.Q_batt_func(P_elec_total_batt_out)
         except AttributeError as e: print(f"警告: Q_batt_func 缺失。{e}")
         except Exception as e: print(f"警告: Q_batt_func 发生意外错误。{e}")
 
@@ -663,7 +674,7 @@ class SimulationEngine:
         P_elec_total_batt_out_t0 = P_inv_in_t0 + P_comp_elec_t0 + P_LTR_fan_t0
         Q_gen_batt_t0 = 0
         try:
-            Q_gen_batt_t0 = hv.Q_batt_func(P_elec_total_batt_out_t0, sp.u_batt, sp.R_int_batt)
+            Q_gen_batt_t0 = self.power_heat_calculator.Q_batt_func(P_elec_total_batt_out_t0)
         except AttributeError: pass # 忽略 Q_batt_func 缺失错误 (已在其他地方警告)
         except Exception: pass    # 忽略其他计算错误 (已在其他地方警告)
         self.data_manager.Q_gen_batt_profile_hist[0] = Q_gen_batt_t0
@@ -811,7 +822,7 @@ class SimulationEngine:
         P_elec_total_batt_out_final = P_inv_in_final + cooling_loop_outputs_final["P_comp_elec"] + cooling_loop_outputs_final["P_LTR_fan_actual"]
         Q_gen_batt_final = 0
         try:
-            Q_gen_batt_final = hv.Q_batt_func(P_elec_total_batt_out_final, sp.u_batt, sp.R_int_batt)
+            Q_gen_batt_final = self.power_heat_calculator.Q_batt_func(P_elec_total_batt_out_final)
         except AttributeError: pass # 忽略函数缺失错误
         except Exception: pass    # 忽略其他计算错误
         self.data_manager.Q_gen_batt_profile_hist[n] = Q_gen_batt_final

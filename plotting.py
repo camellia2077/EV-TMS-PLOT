@@ -176,7 +176,7 @@ class SimulationPlotter:
 
         ax_temp.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
 
-        ax_temp.axhline(self.sim_params['T_ambient'], color='grey', linestyle='-', alpha=0.7, label=f'环境温度 ({self.sim_params["T_ambient"]}°C)')
+        ax_temp.axhline(self.sim_params['T_ambient'], color='black', linestyle='-', alpha=1, label=f'环境温度 ({self.sim_params["T_ambient"]}°C)')
         ax_temp.set_ylabel('温度 (°C)', fontsize=self.common_settings['axis_label_fs'])
         ax_temp.set_xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
         ax_temp.tick_params(axis='x', labelsize=self.common_settings['tick_label_fs'])
@@ -374,6 +374,7 @@ class SimulationPlotter:
         """
         plt.figure(figsize=self.common_settings['figure_size'])
         Q_cabin_evap_log = self.prepared_data.get('Q_cabin_evap_cooling_log', []) # 使用新的键名并添加 .get()
+        
         chart_title = '座舱实际制冷功率变化'
         print("\nStart---------------------------------------------------")
         print(f"--- 图表: {chart_title} ---")
@@ -383,10 +384,8 @@ class SimulationPlotter:
      
         print(f"Average Cabin Evaporator Cooling Power: {np.mean(Q_cabin_evap_log):.2f} W")
         plt.plot(self.time_minutes, Q_cabin_evap_log, label='座舱蒸发器制冷功率 (W)', color='teal', drawstyle='steps-post')
-
-        print("Warning: 'Q_cabin_evap_cooling_log' not found or empty in prepared_data. Plot will be empty.")
-
-        plt.plot([], [], label='座舱蒸发器制冷功率 (W) (无数据)', color='teal', drawstyle='steps-post')
+        if Q_cabin_evap_log is None or len(Q_cabin_evap_log) == 0 or np.all(Q_cabin_evap_log == 0): # 添加条件判断
+            print("Warning: 'Q_cabin_evap_cooling_log' not found or empty in prepared_data. Plot will be empty.")
 
 
         plt.ylabel('座舱制冷功率 (W)', fontsize=self.common_settings['axis_label_fs'])
@@ -467,7 +466,7 @@ class SimulationPlotter:
             plt.axhline(self.sim_params['T_motor_target'], color='magenta', linestyle='--', alpha=0.7, label=f'电机/逆变器目标 ({self.sim_params["T_motor_target"]}°C)')
 
             T_ambient_values = np.full_like(v_accel, t_ambient)
-            plt.plot(v_accel, T_ambient_values, label=f'环境温度 ({t_ambient}°C)', color='grey', linestyle='-', alpha=0.7)
+            plt.plot(v_accel, T_ambient_values, label=f'环境温度 ({t_ambient}°C)', color='black', linestyle='-', alpha=1.0)
 
             plt.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
             plt.xlabel('车速 (km/h)', fontsize=self.common_settings['axis_label_fs'])
@@ -542,7 +541,7 @@ class SimulationPlotter:
 
 
                 ax_temp.axhline(self.sim_params['T_cabin_target'], color='red', linestyle='--', alpha=0.7, label=f'座舱目标 ({self.sim_params["T_cabin_target"]}°C)')
-                ax_temp.axhline(self.sim_params['T_ambient'], color='grey', linestyle='-', alpha=0.7, label=f'环境温度 ({self.sim_params["T_ambient"]}°C)')
+                ax_temp.axhline(self.sim_params['T_ambient'], color='black', linestyle='-', alpha=1, label=f'环境温度 ({self.sim_params["T_ambient"]}°C)')
                 plt.xlabel('时间 (分钟)', fontsize=self.common_settings['axis_label_fs'])
                 plt.ylabel('温度 (°C)', fontsize=self.common_settings['axis_label_fs'])
                 plt.xticks(fontsize=self.common_settings['tick_label_fs'])

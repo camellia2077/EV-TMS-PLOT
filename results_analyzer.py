@@ -9,9 +9,9 @@
 # 5. 提取极值：供绘图模块标记和分析模块打印。
 
 import numpy as np # 导入NumPy库，用于高效的数值计算，特别是数组操作
-import heat_vehicle as hv # 导入自定义的 heat_vehicle 模块，用于计算车辆行驶相关的功率和热量
+import heat_cabin_class as hv # 导入自定义的 heat_vehicle 模块，用于计算车辆行驶相关的功率和热量
 from plotting import SimulationPlotter # 导入 SimulationPlotter 类，主要用于调用其静态方法 _ensure_profile_length
-
+from heat_vehicle_class import PowerHeatCalculator
 class ResultsAnalyzer: # 定义 ResultsAnalyzer 类
     """
     ResultsAnalyzer 类：
@@ -36,6 +36,10 @@ class ResultsAnalyzer: # 定义 ResultsAnalyzer 类
         self.n_steps = int(sp.sim_duration / sp.dt) # 计算仿真步数
         self.time_sim = simulation_results["time_sim"] # 获取仿真的时间序列数组
         self.processed_data = {} # 初始化一个空字典，用于存储后处理过的数据
+        self.power_heat_calculator = PowerHeatCalculator(
+            m = sp.m_vehicle,motor_eta = sp.eta_motor,u_batt = sp.u_batt,r_int = sp.R_int_batt,
+            eta_inv = sp.eta_inv,
+        )
 
     def post_process_data(self): # 定义后处理数据的方法
         """
@@ -65,9 +69,9 @@ class ResultsAnalyzer: # 定义 ResultsAnalyzer 类
         P_inv_in_profile_hist = np.zeros(n_points) # 初始化存储逆变器输入功率历史的数组
         for idx in range(n_points): # 遍历每个时间点
             # 1. 计算当前车速下，车轮处克服行驶阻力所需的功率
-            P_wheel_i = hv.P_wheel_func(v_vehicle_profile[idx], self.sp.m_vehicle, self.sp.T_ambient) # 计算车轮功率
+            P_wheel_i = self.power_heat_calculator.P_wheel_func(v_vehicle_profile[idx], self.sp.T_ambient)
             # 2. 根据车轮功率和电机效率，计算电机的输入功率
-            P_motor_in_i = hv.P_motor_func(P_wheel_i, self.sp.eta_motor) # 计算电机输入功率
+            P_motor_in_i = self.power_heat_calculator.P_motor_func(P_wheel_i, self.sp.eta_motor)
             # 3. 根据电机输入功率和逆变器效率，计算逆变器的输入功率
             #    注意处理逆变器效率为0的情况，防止除零错误
             P_inv_in_profile_hist[idx] = P_motor_in_i / self.sp.eta_inv if self.sp.eta_inv > 0 else 0 # 计算逆变器输入功率，并处理效率为0的情况
