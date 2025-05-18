@@ -29,7 +29,7 @@ class ConfigManager:
         self.config = configparser.ConfigParser()
         if not os.path.exists(config_file):
             raise FileNotFoundError(f"Configuration file '{config_file}' not found.")
-        self.config.read(config_file)
+        self.config.read(config_file, encoding='utf-8')
 
     def get(self, section, option, fallback=None):
         return self.config.get(section, option, fallback=fallback)
