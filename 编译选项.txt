@@ -1,2 +1,0 @@
-python -m nuitka --onefile --lto=yes --python-flag=-OO --mingw64 main.py
-python -m nuitka --lto=yes --python-flag=-OO --mingw64 main.py
