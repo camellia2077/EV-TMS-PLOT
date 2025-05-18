@@ -142,15 +142,9 @@ if __name__ == "__main__":
     else:
         print(f"错误: 输入文件 '{input_file}' 未找到。请创建该文件并填入流程图文本。")
         flowchart_text = f"错误: 文件 {input_file} 未找到。"
-
-    # 指定字体路径，确保你的系统上有这个字体或者修改为可用的字体路径
-    # 例如，在Windows上可能是 "C:/Windows/Fonts/msyh.ttc" (微软雅黑) 或 "simsun.ttc" (宋体)
-    # 在Linux上可能是 "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
-    # 如果不确定，可以先设置为 None，让程序尝试默认字体
-    # 为了更好地显示中文和特殊字符，推荐使用支持这些字符的字体
     
     # 尝试常见的字体名称
-    font_candidates = ["simsun.ttc", "msyh.ttc", "ukai.ttc", "NotoSansCJK-Regular.ttc"] 
+    font_candidates = ["SourceHanSerifSC-Regular.otf"] 
     font_file_path = None
     
     for font_name in font_candidates:
