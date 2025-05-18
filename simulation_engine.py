@@ -3,10 +3,10 @@
 # 它将车辆的各个子系统（动力总成、座舱、热管理系统）模型化，
 # 并在定义的时间跨度内，以离散的时间步长模拟它们之间的相互作用及与环境的热交换。
 
-import numpy as np  # 导入NumPy库，用于高效的数值计算，特别是数组操作
+import numpy as np 
 
-from heat_cabin_class import CabinHeatCalculator # 导入自定义的 heat_cabin_class 模块中的 CabinHeatCalculator 类，用于计算座舱热负荷
-from heat_vehicle_class import PowerHeatCalculator
+from heat_modules.heat_cabin_class import CabinHeatCalculator # 导入自定义的 heat_cabin_class 模块中的 CabinHeatCalculator 类，用于计算座舱热负荷
+from heat_modules.heat_vehicle_class import PowerHeatCalculator
 class DataManager:
     """
     DataManager 类：

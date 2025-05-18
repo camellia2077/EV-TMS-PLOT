@@ -9,9 +9,9 @@
 # 5. 提取极值：供绘图模块标记和分析模块打印。
 
 import numpy as np # 导入NumPy库，用于高效的数值计算，特别是数组操作
-import heat_cabin_class as hv # 导入自定义的 heat_vehicle 模块，用于计算车辆行驶相关的功率和热量
+import heat_modules.heat_cabin_class as hv # 导入自定义的 heat_vehicle 模块，用于计算车辆行驶相关的功率和热量
 from plotting import SimulationPlotter # 导入 SimulationPlotter 类，主要用于调用其静态方法 _ensure_profile_length
-from heat_vehicle_class import PowerHeatCalculator
+from heat_modules.heat_vehicle_class import PowerHeatCalculator
 class ResultsAnalyzer: # 定义 ResultsAnalyzer 类
     """
     ResultsAnalyzer 类：

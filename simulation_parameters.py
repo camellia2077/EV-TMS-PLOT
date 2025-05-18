@@ -4,7 +4,7 @@
 # 它是整个仿真程序参数配置的中心。
 
 import configparser # 导入用于读取和解析 .ini 配置文件的库
-from heat_cabin_class import rho_air_func # 从 heat_cabin_class 模块导入 rho_air_func 函数，用于计算座舱空气密度
+from heat_modules.heat_cabin_class import rho_air_func # 从 heat_cabin_class 模块导入 rho_air_func 函数，用于计算座舱空气密度
 
 # --- 0. 初始化 ConfigParser 并读取 INI 配置文件 ---
 config = configparser.ConfigParser() # 创建一个 ConfigParser 对象
