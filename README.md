@@ -1,6 +1,10 @@
 # EV-TMS-PLOT
 毕业设计，输入环境工况参数，输出特斯拉model y的热管理系统各部分温度变化的图
 
+# 项目文件夹说明
+## png_tree
+这个文件夹可以把txt转为html,png,png输出，用于查看程序的结构
+
 # 配置环境
 pip install -r requirements.txt
 
